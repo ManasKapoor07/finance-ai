@@ -1,14 +1,60 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, RefObject, ReactNode } from "react";
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip,
   XAxis, YAxis, BarChart, Bar,
 } from "recharts";
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
+type SavingsGrowthItem = {
+  month: string;
+  actual: number;
+  withML: number;
+};
 
-const savingsGrowth = [
+type SpendingCategory = {
+  name: string;
+  value: number;
+  fill: string;
+  pct: number;
+};
+
+type ChatMessage = {
+  role: "user" | "ai";
+  text: string;
+  cards?: string[];
+};
+
+type Testimonial = {
+  name: string;
+  city: string;
+  role: string;
+  quote: string;
+  saved: string;
+  avatar: string;
+  color: string;
+};
+
+type RevealProps = {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+};
+
+type StatCounterProps = {
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  label: string;
+};
+
+type UseIntersectionReturn = [
+  RefObject<HTMLDivElement | null>,
+  boolean
+];
+
+const savingsGrowth:SavingsGrowthItem[] = [
   { month: "Jan", actual: 2800, withML: 5600 },
   { month: "Feb", actual: 3100, withML: 8900 },
   { month: "Mar", actual: 2600, withML: 12400 },
@@ -17,7 +63,7 @@ const savingsGrowth = [
   { month: "Jun", actual: 3500, withML: 28700 },
 ];
 
-const spendingCategories = [
+const spendingCategories: SpendingCategory[] = [
   { name: "Food & Dining", value: 18400, fill: "#E8622A", pct: 31 },
   { name: "Shopping", value: 12800, fill: "#9B6FD8", pct: 21 },
   { name: "Transport", value: 8200, fill: "#3A9FD8", pct: 14 },
@@ -25,7 +71,7 @@ const spendingCategories = [
   { name: "Entertainment", value: 4800, fill: "#2EB87A", pct: 8 },
 ];
 
-const chatMessages = [
+const chatMessages: ChatMessage[] = [
   { role: "user", text: "What if I saved ₹3,000/month from food delivery?" },
   {
     role: "ai",
@@ -40,7 +86,7 @@ const chatMessages = [
   },
 ];
 
-const testimonials = [
+const testimonials: Testimonial[] = [
   {
     name: "Rahul M.", city: "Bengaluru", role: "Software Engineer",
     quote: "Found ₹6,200/month leaking into forgotten subscriptions and UPI impulse buys. MoneyLens paid for itself on day one.",
@@ -60,39 +106,68 @@ const testimonials = [
 
 // ─── HOOKS ───────────────────────────────────────────────────────────────────
 
-function useIntersection(threshold = 0.12) {
-  const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
+function useIntersection(
+  threshold: number = 0.12
+): UseIntersectionReturn {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState<boolean>(false);
+
   useEffect(() => {
     const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      ([e]) => {
+        if (e.isIntersecting) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
       { threshold }
     );
+
     if (ref.current) obs.observe(ref.current);
+
     return () => obs.disconnect();
   }, [threshold]);
+
   return [ref, visible];
 }
 
-function useCounter(target, visible, duration = 1800) {
-  const [count, setCount] = useState(0);
+function useCounter(
+  target: number,
+  visible: boolean,
+  duration: number = 1800
+): number {
+  const [count, setCount] = useState<number>(0);
+
   useEffect(() => {
     if (!visible) return;
+
     let start = 0;
     const step = target / (duration / 16);
+
     const timer = setInterval(() => {
       start += step;
-      if (start >= target) { setCount(target); clearInterval(timer); }
-      else setCount(Math.floor(start));
+
+      if (start >= target) {
+        setCount(target);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(start));
+      }
     }, 16);
+
     return () => clearInterval(timer);
   }, [visible, target, duration]);
+
   return count;
 }
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────────────
 
-function Reveal({ children, delay = 0, className = "" }) {
+function Reveal({
+  children,
+  delay = 0,
+  className = "",
+}: RevealProps) {
   const [ref, visible] = useIntersection();
   return (
     <div ref={ref} className={className} style={{
@@ -105,7 +180,12 @@ function Reveal({ children, delay = 0, className = "" }) {
   );
 }
 
-function StatCounter({ value, prefix = "", suffix = "", label }) {
+function StatCounter({
+  value,
+  prefix = "",
+  suffix = "",
+  label,
+}: StatCounterProps) {
   const [ref, visible] = useIntersection();
   const count = useCounter(value, visible);
   const fmt = (n) => {
