@@ -1,8 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Cabinet+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
-body {
-  background: #0a0a0a;
-  color: #ffffff;
+
+* { box-sizing: border-box; }
+
+body { font-family: 'Cabinet Grotesk', system-ui, sans-serif !important; }
+
+.font-serif {
+  font-family: 'Instrument Serif', Georgia, serif !important;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.font-mono-ml { font-family: 'Geist Mono', 'Courier New', monospace; }
+
+@keyframes fadeUp     { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes chatBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+@keyframes float      { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+@keyframes slowSpin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes marquee    { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+@keyframes pulseDot   { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.5} }
+@keyframes shimmer    { 0%{background-position:-200% center} 100%{background-position:200% center} }
+
+.ml-float   { animation: float 4.5s ease-in-out infinite; }
+.ml-spin    { animation: slowSpin 25s linear infinite; }
+.ml-marquee { animation: marquee 35s linear infinite; }
+
+.text-shimmer {
+  background: linear-gradient(90deg, #E8622A, #D4A017, #E8622A);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 4s linear infinite;
+}
+
+.hero-grid-bg {
+  background-image:
+    linear-gradient(rgba(232,98,42,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,98,42,0.03) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+input[type=range] { cursor: pointer; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  background: #E8622A;
+  border-radius: 50%;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(232,98,42,0.2);
 }
 
 .gradient-text {
