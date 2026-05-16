@@ -2,653 +2,883 @@
 
 import { useParams } from "next/navigation";
 import {
-  AreaChart, Area, PieChart, Pie, Cell,
-  CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  LayoutDashboard, FileText, CreditCard, Sparkles, Settings,
-  Upload, TrendingDown, AlertCircle, Zap, ChevronRight,
-  Wallet, ShoppingBag, Utensils, Car, Wifi, MoreHorizontal,
-  Bell, ArrowUpRight, ArrowDownRight, Target, Activity,
+  LayoutDashboard, FileText, CreditCard, Sparkles, Upload,
+  Bell, ArrowUpRight, ArrowDownRight, Target, Activity, Calendar,
+  Brain, TrendingUp, ListChecks, Lightbulb, CheckCircle2,
+  ChevronDown, Users, AlertTriangle,
+  Wallet, ShoppingBag, Utensils, Car, Wifi,
+  ShoppingCart, RefreshCw, Building2, Receipt, CornerDownLeft,
+  ArrowDownToLine, Heart, Clock, Search,
+  ChevronLeft, ChevronRight, MoreHorizontal, Filter,
+  TrendingDown, Shield, Zap, Eye, AlertCircle,
 } from "lucide-react";
-import { useGetStatementByIdQuery } from "@/app/redux/api/authApi";
-import { useState } from "react";
+import {
+  useAnalyzeFinancialProfileMutation,
+  useGetStatementByIdQuery,
+  useGetDashboardQuery,
+  useGetTransactionsQuery,
+  useGetRecurringChargesQuery,
+  useGetWeeklySpendQuery,
+} from "../../redux/api/authApi";
+import type { WeeklySpendItem } from "../../redux/api/authApi";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Chart from "chart.js/auto";
+import { WeeklySpendRhythm } from "../WeeklyRythum";
+import { AIChatPanel } from "../AIChatPanel";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── TYPES ────────────────────────────────────────────────────────────────────
 
 interface Transaction {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-  type: "DEBIT" | "CREDIT";
-  balance: number;
-  category: string;
-  subCategory: string | null;
+  id: string; date: string; description: string;
+  amount: number; type: "DEBIT" | "CREDIT";
+  balance: number; category: string; subCategory: string | null;
 }
-
 interface Insight {
-  id: string;
-  type: string;
-  label: string;
-  value: string;
-  meta: string | null;
+  id: string; type: string; label: string;
+  value: string; meta: string | null;
 }
-
+interface MonthlyOverviewItem {
+  month: string; debit: number; credit: number;
+}
 interface DashboardData {
-  id: string;
-  originalFileName: string;
-  status: string;
-  createdAt: string;
-  transactions: Transaction[];
+  totalBalance: number; totalSpending: number; totalIncome: number;
+  balanceChangePercent: number; spendingChangePercent: number; incomeChangePercent: number;
+  monthlyOverview: MonthlyOverviewItem[];
+  spendingByCategory: Record<string, number>;
+  recentTransactions: Transaction[];
+  savings?: number;
+}
+interface StatementData {
+  id: string; originalFileName: string; status: string;
+  createdAt: string; periodFrom: string; periodTo: string;
   insights: Insight[];
 }
+interface PagedTransactions {
+  content: Transaction[]; page: number; size: number;
+  totalElements: number; totalPages: number; first: boolean; last: boolean;
+}
+interface ProjectionCard {
+  headline: string; impact: string; timeframe: string;
+  type: "leak" | "opportunity" | "compounding" | "risk";
+}
+interface BehavioralSignal {
+  label: string; observation: string;
+  emotion: "impulsive" | "anxious" | "disciplined" | "avoidant" | "reactive";
+  intensity: number;
+}
+interface HiddenPattern {
+  title: string; insight: string;
+  category: "timing" | "merchant" | "category" | "behavioral";
+}
+interface AnalysisData {
+  summary: string;
+  moneyPersonality: { archetype: string; description: string; trait: string };
+  spendingPulse: { status: string; summary: string; stabilityScore: number };
+  risks: string[];
+  positiveHabits: string[];
+  recommendations: string[];
+  nextActions: string[];
+  projections: ProjectionCard[];
+  behavioralSignals: BehavioralSignal[];
+  hiddenPatterns: HiddenPattern[];
+}
+interface RecurringCharge {
+  merchant: string;
+  rawDescription: string;
+  avgAmount: number;
+  totalSpent: number;
+  occurrences: number;
+  firstSeen: string;
+  lastSeen: string;
+  category: string;
+  variancePct: number;
+  estimatedMonthly: number;
+  estimatedAnnual: number;
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-const CAT: Record<string, { color: string; bg: string; border: string; icon: any }> = {
-  "Food & Dining":   { color: "#FF6B35", bg: "rgba(255,107,53,0.1)",   border: "rgba(255,107,53,0.2)",   icon: Utensils },
-  "Shopping":        { color: "#A78BFA", bg: "rgba(167,139,250,0.1)",  border: "rgba(167,139,250,0.2)",  icon: ShoppingBag },
-  "Transport":       { color: "#38BDF8", bg: "rgba(56,189,248,0.1)",   border: "rgba(56,189,248,0.2)",   icon: Car },
-  "Utilities":       { color: "#34D399", bg: "rgba(52,211,153,0.1)",   border: "rgba(52,211,153,0.2)",   icon: Wifi },
-  "Cash Withdrawal": { color: "#FBBF24", bg: "rgba(251,191,36,0.1)",   border: "rgba(251,191,36,0.2)",   icon: Wallet },
-  "Other":           { color: "#6B7280", bg: "rgba(107,114,128,0.1)",  border: "rgba(107,114,128,0.2)",  icon: MoreHorizontal },
+const PIE_COLORS = ["#0ea5e9","#f59e0b","#10b981","#8b5cf6","#f43f5e","#06b6d4","#84cc16","#ec4899"];
+
+const CAT_META: Record<string, { bg: string; color: string; icon: any }> = {
+  "Food & Dining":    { bg: "#fff7ed", color: "#ea580c", icon: Utensils },
+  "Groceries":        { bg: "#eff6ff", color: "#2563eb", icon: ShoppingCart },
+  "Shopping":         { bg: "#fdf4ff", color: "#9333ea", icon: ShoppingBag },
+  "Transport":        { bg: "#f0f9ff", color: "#0284c7", icon: Car },
+  "Utilities":        { bg: "#f0fdf4", color: "#16a34a", icon: Wifi },
+  "Subscriptions":    { bg: "#faf5ff", color: "#7c3aed", icon: RefreshCw },
+  "Healthcare":       { bg: "#ecfdf5", color: "#059669", icon: Activity },
+  "Investment":       { bg: "#fefce8", color: "#ca8a04", icon: TrendingUp },
+  "EMI / Loan":       { bg: "#eff6ff", color: "#1d4ed8", icon: CreditCard },
+  "P2P Transfer":     { bg: "#fff7ed", color: "#c2410c", icon: Users },
+  "Cash Withdrawal":  { bg: "#f9fafb", color: "#374151", icon: Wallet },
+  "Bank Transfer":    { bg: "#eff6ff", color: "#1e40af", icon: Building2 },
+  "Merchant Payment": { bg: "#fffbeb", color: "#92400e", icon: Receipt },
+  "Refund":           { bg: "#f0fdf4", color: "#166534", icon: CornerDownLeft },
+  "Income":           { bg: "#ecfdf5", color: "#14532d", icon: ArrowDownToLine },
+  "Personal Care":    { bg: "#fdf2f8", color: "#9d174d", icon: Heart },
+  "Other":            { bg: "#f8fafc", color: "#64748b", icon: MoreHorizontal },
 };
-const cat = (k: string) => CAT[k] ?? CAT["Other"];
 
-const CHART_COLORS = ["#FF6B35","#A78BFA","#38BDF8","#34D399","#FBBF24","#F472B6"];
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-// clean "UPI-ZOMATO-PAYZOMATO@HDFCBANK..." → "Zomato"
-const clean = (d: string) =>
-  d.replace(/^UPI-/, "")
-   .replace(/@[^\s]+/g, "")
-   .split("-")[0]
-   .trim()
-   .toLowerCase()
-   .replace(/\b\w/g, c => c.toUpperCase())
-   .slice(0, 26) || d.slice(0, 26);
+function fmtK(n: number) {
+  if (n >= 100000) return "₹" + (n / 100000).toFixed(1) + "L";
+  if (n >= 1000) return "₹" + (n / 1000).toFixed(1) + "K";
+  return "₹" + Math.round(n);
+}
+function fmtCompact(n: number) {
+  if (n >= 100000) return "₹" + (n / 100000).toFixed(2) + "L";
+  if (n >= 1000) return "₹" + (n / 1000).toFixed(1) + "K";
+  return "₹" + Math.round(n);
+}
+function fmtDate(d: string) {
+  const [, m, day] = d.split("-");
+  return `${parseInt(day)} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)-1]}`;
+}
+function formatPeriodLabel(from: string, to: string) {
+  const opts: Intl.DateTimeFormatOptions = { month: "short", year: "numeric" };
+  const a = new Date(from).toLocaleDateString("en-IN", opts);
+  const b = new Date(to).toLocaleDateString("en-IN", opts);
+  return a === b ? a : `${a} – ${b}`;
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SIDEBAR
-// ─────────────────────────────────────────────────────────────────────────────
+const MERCHANT_MAP: [RegExp, string][] = [
+  [/zomato/i,"Zomato"],[/blinkit/i,"Blinkit"],[/amazon/i,"Amazon"],
+  [/swiggy/i,"Swiggy"],[/airtel/i,"Airtel"],[/uber/i,"Uber"],[/rapido/i,"Rapido"],
+  [/google/i,"Google"],[/roppen/i,"Rapido"],
+];
+function resolveMerchant(desc: string): string {
+  for (const [re, name] of MERCHANT_MAP) if (re.test(desc)) return name;
+  const cleaned = desc
+    .replace(/\/UPI\/|\/Blinki\/|\/Collec\/|\/UPIInt\/|\/Payvia\/|\/Pay [Tt]o\/|\/Paymen\/|\/Verifi\//g, " ")
+    .replace(/@\S+/g,"").replace(/[A-Z]{2,5} BANK[^/]*/gi," ").replace(/\d{8,}/g," ").replace(/[^\w\s]/g," ").trim();
+  const words = cleaned.split(/\s+/).filter(w => w.length > 2).slice(0, 2);
+  return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") || desc.slice(0, 20);
+}
+function bankVia(desc: string): string {
+  const m = desc.match(/\/([A-Z][A-Z ]+BANK[^/]*)/i);
+  return m ? m[1].trim().slice(0, 22) : "UPI";
+}
 
-function Sidebar({ active = "Overview" }: { active?: string }) {
-  const nav = [
-    { label: "Overview",     icon: LayoutDashboard },
-    { label: "Statements",   icon: FileText },
-    { label: "Transactions", icon: CreditCard },
-    { label: "AI Insights",  icon: Sparkles },
-    { label: "Settings",     icon: Settings },
-  ];
 
+const STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f1f5f9; font-family: 'Sora', sans-serif; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+  .card {
+    background: #ffffff; border-radius: 20px;
+    border: 1px solid #e8edf5;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 4px 16px rgba(15,23,42,0.03);
+  }
+  .stat-card {
+    background: #ffffff; border-radius: 20px; border: 1px solid #e8edf5;
+    padding: 22px 24px; box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .stat-card:hover { box-shadow: 0 4px 20px rgba(15,23,42,0.09); transform: translateY(-2px); }
+  .tx-row {
+    display: grid; grid-template-columns: 2.2fr 1fr 1fr 0.8fr;
+    gap: 8px; padding: 11px 14px; border-radius: 12px;
+    align-items: center; cursor: default; transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .tx-row:hover { background: #f8fafc; border-color: #e8edf5; }
+  .filter-btn {
+    padding: 5px 14px; border-radius: 8px; font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: 'Sora', sans-serif; border: none; transition: all 0.15s;
+  }
+  .filter-btn.active { background: #0f172a; color: #fff; }
+  .filter-btn:not(.active) { background: transparent; color: #94a3b8; }
+  .filter-btn:not(.active):hover { background: #f1f5f9; color: #334155; }
+  .section-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; background: none; border: none; cursor: pointer;
+    padding: 0; font-family: 'Sora', sans-serif; margin-bottom: 10px;
+  }
+  .ai-action-btn {
+    width: 100%; padding: 13px; border-radius: 14px;
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    color: #fff; font-size: 13px; font-weight: 700; border: none;
+    cursor: pointer; font-family: 'Sora', sans-serif;
+    letter-spacing: -0.01em; transition: opacity 0.2s;
+  }
+  .ai-action-btn:hover { opacity: 0.88; }
+  .page-btn {
+    width: 28px; height: 28px; border-radius: 8px; font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: 'Sora', sans-serif; border: 1px solid #e2e8f0; transition: all 0.15s;
+  }
+  .page-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+  .page-btn:not(.active) { background: #fff; color: #64748b; }
+  .page-btn:not(.active):hover { background: #f8fafc; color: #334155; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 4px; padding: 6px 12px;
+    border-radius: 9px; font-size: 11px; font-weight: 600; cursor: pointer;
+    font-family: 'Sora', sans-serif; background: #fff; color: #374151;
+    border: 1px solid #e2e8f0; transition: all 0.15s;
+  }
+  .nav-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+  .nav-btn:not(:disabled):hover { background: #f8fafc; }
+  .recurring-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    border-radius: 12px; background: #fafafa; border: 1px solid #f1f5f9; transition: all 0.15s;
+  }
+  .recurring-row:hover { background: #f8fafc; border-color: #e8edf5; }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 10px;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp 0.45s ease both; }
+  .fade-up-1 { animation-delay: 0.05s; }
+  .fade-up-2 { animation-delay: 0.1s; }
+  .fade-up-3 { animation-delay: 0.15s; }
+  .fade-up-4 { animation-delay: 0.2s; }
+  .fade-up-5 { animation-delay: 0.25s; }
+`;
+
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <aside className="hidden lg:flex w-60 shrink-0 flex-col bg-[#0c0c0e] border-r border-white/[0.06] px-4 py-7 gap-8">
-      {/* Brand */}
-      <div className="flex items-center gap-2.5 px-2">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#FF6B35] to-[#f59e0b] flex items-center justify-center font-black text-black text-sm">M</div>
-        <span className="font-black text-[15px] tracking-tight text-white">MoneyLens</span>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 space-y-0.5">
-        {nav.map(({ label, icon: Icon }) => {
-          const on = label === active;
-          return (
-            <button key={label} className={`
-              w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150
-              ${on
-                ? "bg-[#FF6B35]/12 text-[#FF6B35] border border-[#FF6B35]/20"
-                : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]"
-              }
-            `}>
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
-              {on && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#FF6B35]" />}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Upload */}
-      <button className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#FF6B35] hover:bg-[#ff7d4a] text-white text-[13px] font-bold transition-all active:scale-95">
-        <Upload className="w-3.5 h-3.5" />
-        Upload Statement
-      </button>
-    </aside>
+    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#94a3b8", marginBottom: "12px" }}>
+      {children}
+    </p>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TOPBAR
-// ─────────────────────────────────────────────────────────────────────────────
 
-function Topbar({ file, month }: { file: string; month: string }) {
-  return (
-    <header className="sticky top-0 z-40 flex items-center justify-between px-7 py-4 bg-[#0c0c0e]/90 backdrop-blur-xl border-b border-white/[0.06]">
-      <div className="flex items-center gap-3">
-        <div>
-          <p className="text-[11px] text-zinc-600 uppercase tracking-widest font-semibold">Statement · {month}</p>
-          <p className="text-[13px] text-zinc-300 font-medium truncate max-w-xs mt-0.5">{file}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <button className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.07] flex items-center justify-center text-zinc-500 hover:text-white transition-colors">
-          <Bell className="w-3.5 h-3.5" />
-        </button>
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF6B35] to-[#f59e0b] flex items-center justify-center text-black font-black text-xs">U</div>
-      </div>
-    </header>
-  );
-}
+function StatCards({ dashboard }: { dashboard: DashboardData }) {
+  const savings = dashboard.totalIncome - dashboard.totalSpending;
+  const sign = (v: number) => v >= 0 ? `+${v.toFixed(1)}%` : `${v.toFixed(1)}%`;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HERO ROW — Balance + 3 stat pills
-// ─────────────────────────────────────────────────────────────────────────────
-
-function HeroRow({ insights, transactions }: { insights: Insight[]; transactions: Transaction[] }) {
-  const s = (label: string) => insights.find(i => i.type === "SUMMARY" && i.label === label)?.value ?? "—";
-  const lastBal = transactions[0]?.balance ?? 0;
-  const month   = insights.find(i => i.type === "MONTHLY_TREND")?.label ?? "";
-  const debits  = transactions.filter(t => t.type === "DEBIT").length;
-  const credits = transactions.filter(t => t.type === "CREDIT").length;
-
-  const pills = [
-    { label: "Total Debits",  value: s("Total Spent"),    icon: ArrowDownRight, color: "#FF6B35", glow: "shadow-[0_0_24px_rgba(255,107,53,0.15)]" },
-    { label: "Total Credits", value: s("Total Received"), icon: ArrowUpRight,   color: "#34D399", glow: "shadow-[0_0_24px_rgba(52,211,153,0.15)]" },
-    { label: "Net Flow",      value: s("Net Flow"),       icon: Activity,       color: "#A78BFA", glow: "shadow-[0_0_24px_rgba(167,139,250,0.15)]" },
-    { label: "Transactions",  value: s("Total Transactions"), icon: Target,     color: "#38BDF8", glow: "shadow-[0_0_24px_rgba(56,189,248,0.15)]" },
+  const cards = [
+    {
+      label: "Current Balance", value: fmtCompact(dashboard.totalBalance),
+      sub: `${sign(dashboard.balanceChangePercent)} from last month`,
+      good: dashboard.balanceChangePercent >= 0,
+      accent: "#6366f1", bg: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)", dark: true,
+    },
+    {
+      label: "Total Income", value: fmtCompact(dashboard.totalIncome),
+      sub: `${sign(dashboard.incomeChangePercent)} vs prior`,
+      good: dashboard.incomeChangePercent >= 0,
+      accent: "#10b981", bg: "#fff", dark: false,
+    },
+    {
+      label: "Total Spending", value: fmtCompact(dashboard.totalSpending),
+      sub: `${sign(dashboard.spendingChangePercent)} vs prior`,
+      good: dashboard.spendingChangePercent <= 0,
+      accent: "#f43f5e", bg: "#fff", dark: false,
+    },
+    {
+      label: "Net Savings", value: fmtCompact(Math.abs(savings)),
+      sub: savings >= 0 ? "Positive net flow ↑" : "Negative net flow ↓",
+      good: savings >= 0, accent: "#f59e0b", bg: "#fff", dark: false,
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-      {/* Main balance card */}
-      <div className="lg:col-span-2 relative rounded-2xl bg-gradient-to-br from-[#141416] to-[#0f0f11] border border-white/[0.07] p-6 overflow-hidden">
-        {/* Glow blob */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#FF6B35]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#FF6B35]/30 to-transparent" />
-
-        <p className="text-[11px] text-zinc-600 uppercase tracking-[0.15em] font-semibold mb-3">Current Balance</p>
-        <p className="text-4xl font-black tracking-tighter text-white mb-1">
-          ₹{lastBal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </p>
-        <div className="flex items-center gap-2 mt-4">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#FF6B35] bg-[#FF6B35]/10 border border-[#FF6B35]/20 px-2.5 py-1 rounded-lg">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] animate-pulse" />
-            {month}
-          </span>
-          <span className="text-[11px] text-zinc-600">{debits} debits · {credits} credits</span>
-        </div>
-      </div>
-
-      {/* Stat pills */}
-      {pills.map(({ label, value, icon: Icon, color, glow }, i) => (
-        <div key={i} className={`rounded-2xl bg-[#141416] border border-white/[0.07] p-5 flex flex-col justify-between ${glow} hover:border-white/[0.12] transition-all`}>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[11px] text-zinc-600 uppercase tracking-[0.12em] font-semibold">{label}</p>
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}18` }}>
-              <Icon className="w-3.5 h-3.5" style={{ color }} />
-            </div>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "14px" }}>
+      {cards.map((c, i) => (
+        <div key={i} className={`stat-card fade-up fade-up-${i+1}`}
+          style={{ background: c.bg, position: "relative", overflow: "hidden", padding: "24px" }}>
+          <div style={{ position: "absolute", top: 0, left: 24, right: 24, height: "3px",
+            background: c.dark ? "rgba(255,255,255,0.3)" : c.accent, borderRadius: "0 0 3px 3px" }} />
+          <p style={{ fontSize: "11px", fontWeight: 600, color: c.dark ? "rgba(255,255,255,0.7)" : "#94a3b8", marginBottom: "10px", letterSpacing: "0.03em" }}>
+            {c.label}
+          </p>
+          <p style={{ fontSize: "26px", fontWeight: 800, color: c.dark ? "#fff" : "#0f172a",
+            letterSpacing: "-0.04em", lineHeight: 1, marginBottom: "12px", fontFamily: "'JetBrains Mono', monospace" }}>
+            {c.value}
+          </p>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600,
+            color: c.dark ? (c.good ? "#a7f3d0" : "#fecaca") : (c.good ? "#059669" : "#dc2626"),
+            background: c.dark ? (c.good ? "rgba(167,243,208,0.15)" : "rgba(254,202,202,0.15)") : (c.good ? "#ecfdf5" : "#fef2f2"),
+            padding: "4px 9px", borderRadius: "100px" }}>
+            {c.good ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+            {c.sub}
           </div>
-          <p className="text-xl font-black tracking-tight" style={{ color }}>{value}</p>
         </div>
       ))}
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CHARTS ROW
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── WEEKLY SPEND RHYTHM ──────────────────────────────────────────────────────
 
-function SpendingChart({ transactions }: { transactions: Transaction[] }) {
-  const grouped: Record<string, number> = {};
-  [...transactions].reverse().forEach(tx => {
-    if (tx.type !== "DEBIT") return;
-    grouped[tx.date] = (grouped[tx.date] ?? 0) + tx.amount;
-  });
-  const data = Object.entries(grouped)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, amount]) => ({ date: date.slice(8), amount: Math.round(amount) }));
+const peakLabelPlugin = {
+  id: "peakLabelPlugin",
+  afterDatasetsDraw(chart: any, _: any, opts: any) {
+    const { ctx, scales } = chart;
+    const { peakIdx, debits } = opts;
+    const meta = chart.getDatasetMeta(0);
+    if (!meta?.data?.[peakIdx]) return;
+    const bar = meta.data[peakIdx];
+    const x = bar.x;
+    const y = scales.y.getPixelForValue(debits[peakIdx]) - 12;
+    ctx.save();
+    ctx.font = "600 10px 'Sora', sans-serif";
+    ctx.fillStyle = "#e11d48";
+    ctx.textAlign = "center";
+    ctx.fillText("▲ peak", x, y);
+    ctx.restore();
+  },
+};
 
-  return (
-    <div className="rounded-2xl bg-[#141416] border border-white/[0.07] p-6">
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <h3 className="text-[15px] font-bold text-white">Daily Spend</h3>
-          <p className="text-[12px] text-zinc-600 mt-0.5">Debit outflow per day</p>
-        </div>
-        <span className="text-[11px] text-[#FF6B35] bg-[#FF6B35]/10 border border-[#FF6B35]/20 px-2.5 py-1 rounded-lg font-semibold">This Month</span>
-      </div>
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 0, left: -28, bottom: 0 }}>
-            <defs>
-              <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FF6B35" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#FF6B35" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f1f23" />
-            <XAxis dataKey="date" stroke="#333" tick={{ fontSize: 10, fill: "#52525b" }} />
-            <YAxis stroke="#333" tick={{ fontSize: 10, fill: "#52525b" }} tickFormatter={v => `${(v/1000).toFixed(0)}K`} />
-            <Tooltip
-              contentStyle={{ background: "#1a1a1e", border: "1px solid #2a2a2e", borderRadius: 10, fontSize: 12, color: "#fff" }}
-              formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Spent"]}
-              labelStyle={{ color: "#71717a" }}
-            />
-            <Area type="monotone" dataKey="amount" stroke="#FF6B35" strokeWidth={1.5} fill="url(#sg)" dot={false} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
 
-function BalanceChart({ transactions }: { transactions: Transaction[] }) {
-  const data = [...transactions]
-    .reverse()
-    .filter((_, i) => i % 4 === 0)
-    .map(tx => ({ date: tx.date.slice(8), balance: tx.balance }));
+// ─── CATEGORY BREAKDOWN ───────────────────────────────────────────────────────
+
+function CategoryBreakdown({ spendingByCategory }: { spendingByCategory: Record<string, number> }) {
+  const total = Object.values(spendingByCategory ?? {}).reduce((a, b) => a + Number(b || 0), 0);
+  const pie = Object.entries(spendingByCategory ?? {})
+    .sort(([, a], [, b]) => Number(b) - Number(a))
+    .map(([name, value], i) => ({
+      name, value: Number(value || 0),
+      pct: total > 0 ? ((Number(value) / total) * 100).toFixed(1) : "0",
+      color: PIE_COLORS[i % PIE_COLORS.length],
+    }));
 
   return (
-    <div className="rounded-2xl bg-[#141416] border border-white/[0.07] p-6">
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <h3 className="text-[15px] font-bold text-white">Balance Flow</h3>
-          <p className="text-[12px] text-zinc-600 mt-0.5">Running balance across month</p>
-        </div>
-        <span className="text-[11px] text-[#38BDF8] bg-[#38BDF8]/10 border border-[#38BDF8]/20 px-2.5 py-1 rounded-lg font-semibold">Live</span>
-      </div>
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 0, left: -28, bottom: 0 }}>
-            <defs>
-              <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#38BDF8" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#38BDF8" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f1f23" />
-            <XAxis dataKey="date" stroke="#333" tick={{ fontSize: 10, fill: "#52525b" }} />
-            <YAxis stroke="#333" tick={{ fontSize: 10, fill: "#52525b" }} tickFormatter={v => `${(v/1000).toFixed(0)}K`} />
-            <Tooltip
-              contentStyle={{ background: "#1a1a1e", border: "1px solid #2a2a2e", borderRadius: 10, fontSize: 12, color: "#fff" }}
-              formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Balance"]}
-              labelStyle={{ color: "#71717a" }}
-            />
-            <Area type="monotone" dataKey="balance" stroke="#38BDF8" strokeWidth={1.5} fill="url(#bg2)" dot={false} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CATEGORY PIE
-// ─────────────────────────────────────────────────────────────────────────────
-
-function CategoryPie({ insights }: { insights: Insight[] }) {
-  const cats = insights.filter(i => i.type === "CATEGORY");
-  const pie  = cats.map(c => ({ name: c.label, value: parseFloat(c.value.replace(/[₹,]/g, "")) }));
-
-  return (
-    <div className="rounded-2xl bg-[#141416] border border-white/[0.07] p-6">
-      <h3 className="text-[15px] font-bold text-white mb-1">Categories</h3>
-      <p className="text-[12px] text-zinc-600 mb-5">Spend distribution</p>
-
-      <div className="flex gap-4 items-center">
-        <div className="w-36 h-36 shrink-0">
+    <div className="card" style={{ padding: "24px 26px" }}>
+      <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em", marginBottom: "4px" }}>Where Money Goes</h2>
+      <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "20px" }}>Total: {fmtK(total)}</p>
+      <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
+        <div style={{ width: "120px", height: "120px", flexShrink: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={pie} cx="50%" cy="50%" innerRadius={42} outerRadius={66} dataKey="value" paddingAngle={2}>
-                {pie.map((e, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              <Pie data={pie} cx="50%" cy="50%" innerRadius={36} outerRadius={56} dataKey="value" paddingAngle={2} strokeWidth={0}>
+                {pie.map((e, i) => <Cell key={i} fill={e.color} />)}
               </Pie>
               <Tooltip
-                contentStyle={{ background: "#1a1a1e", border: "1px solid #2a2a2e", borderRadius: 10, fontSize: 11 }}
-                formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, ""]}
+                contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, fontSize: 11, fontFamily: "Sora" }}
+                formatter={(v: any, _: any, p: any) => [fmtK(v), p.payload.name]}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "7px" }}>
+          {pie.slice(0, 7).map((c, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: "7px", height: "7px", borderRadius: "2px", background: c.color, flexShrink: 0 }} />
+              <span style={{ fontSize: "11px", color: "#475569", flex: 1 }}>{c.name}</span>
+              <div style={{ height: "4px", width: `${Math.max(8, Number(c.pct))}%`, background: c.color, borderRadius: "2px", opacity: 0.7 }} />
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", minWidth: "30px", textAlign: "right", fontFamily: "'JetBrains Mono', monospace" }}>{c.pct}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        <div className="flex-1 space-y-2.5 min-w-0">
-          {cats.map((c, i) => {
-            const pct = parseFloat(c.meta?.replace("%","") ?? "0");
-            const color = CHART_COLORS[i % CHART_COLORS.length];
+// ─── RECURRING CHARGES ────────────────────────────────────────────────────────
+
+function RecurringCharges({ statementId }: { statementId: string }) {
+  const { data: res, isLoading, isError } = useGetRecurringChargesQuery(statementId);
+  const charges: RecurringCharge[] = res?.data ?? [];
+  const totalMonthly = charges.reduce((sum, c) => sum + Number(c.estimatedMonthly), 0);
+
+  if (isLoading) {
+    return (
+      <div className="card" style={{ padding: "24px 26px" }}>
+        <div style={{ marginBottom: "18px" }}>
+          <div className="skeleton" style={{ height: "18px", width: "60%", marginBottom: "6px" }} />
+          <div className="skeleton" style={{ height: "12px", width: "40%" }} />
+        </div>
+        {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: "54px", marginBottom: "7px" }} />)}
+      </div>
+    );
+  }
+
+  if (isError || charges.length === 0) {
+    return (
+      <div className="card" style={{ padding: "24px 26px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "200px", gap: "10px" }}>
+        <RefreshCw size={28} color="#e2e8f0" />
+        <p style={{ fontSize: "13px", color: "#94a3b8", fontWeight: 500 }}>No recurring charges detected</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ padding: "24px 26px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "18px" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "4px" }}>
+            <RefreshCw size={14} color="#8b5cf6" />
+            <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em" }}>Recurring Charges</h2>
+          </div>
+          <p style={{ fontSize: "12px", color: "#94a3b8" }}>
+            {charges.length} detected · {fmtCompact(totalMonthly)}/mo estimated
+          </p>
+        </div>
+        <div style={{ background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: "10px", padding: "6px 11px", textAlign: "right" }}>
+          <p style={{ fontSize: "9px", color: "#8b5cf6", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Annual</p>
+          <p style={{ fontSize: "14px", fontWeight: 800, color: "#7c3aed", fontFamily: "'JetBrains Mono', monospace" }}>
+            {fmtCompact(totalMonthly * 12)}
+          </p>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+        {charges.map((c, i) => {
+          const cm = CAT_META[c.category] ?? CAT_META["Other"];
+          const Icon = cm.icon;
+          return (
+            <div key={i} className="recurring-row">
+              <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: cm.bg,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon size={13} color={cm.color} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a" }}>{c.merchant}</p>
+                  {c.variancePct > 10 && (
+                    <span style={{ fontSize: "8px", fontWeight: 700, color: "#d97706",
+                      background: "#fffbeb", border: "1px solid #fde68a", padding: "1px 5px", borderRadius: "4px" }}>
+                      variable
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: "10px", color: "#94a3b8", marginTop: "1px" }}>
+                  {c.occurrences}× seen · last {fmtDate(c.lastSeen)}
+                </p>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <p style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", fontFamily: "'JetBrains Mono', monospace" }}>
+                  {fmtCompact(Number(c.avgAmount))}
+                </p>
+                <p style={{ fontSize: "9px", color: "#94a3b8" }}>avg/charge</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: "14px", padding: "10px 12px", background: "#f0f9ff", border: "1px solid #bae6fd",
+        borderRadius: "10px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+        <AlertCircle size={13} color="#0284c7" style={{ marginTop: "1px", flexShrink: 0 }} />
+        <p style={{ fontSize: "11px", color: "#0369a1", lineHeight: 1.6 }}>
+          Charges with &lt;20% amount variance flagged as recurring. Review and cancel any you no longer use.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── TRANSACTIONS TABLE ───────────────────────────────────────────────────────
+
+function TransactionsTable({ statementId }: { statementId: string }) {
+  const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState<"ALL" | "DEBIT" | "CREDIT">("ALL");
+  const { data: res, isFetching } = useGetTransactionsQuery({
+    statementId, page, size: 25, sort: "date", dir: "desc",
+    type: filter === "ALL" ? undefined : filter,
+  });
+  const paged: PagedTransactions | null = res?.data ?? null;
+  const transactions = paged?.content ?? [];
+
+  return (
+    <div className="card fade-up fade-up-5" style={{ padding: "24px 26px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+        <div>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em" }}>Transactions</h2>
+          {paged && <p style={{ fontSize: "11px", color: "#94a3b8", marginTop: "3px" }}>{paged.totalElements} entries · Page {paged.page + 1}/{paged.totalPages}</p>}
+        </div>
+        <div style={{ display: "flex", gap: "2px", background: "#f1f5f9", padding: "3px", borderRadius: "10px" }}>
+          {(["ALL","DEBIT","CREDIT"] as const).map(f => (
+            <button key={f} className={`filter-btn${filter === f ? " active" : ""}`} onClick={() => { setFilter(f); setPage(0); }}>{f}</button>
+          ))}
+        </div>
+      </div>
+      <div className="tx-row" style={{ marginBottom: "2px" }}>
+        {["Merchant","Category","Amount","Date"].map(h => (
+          <span key={h} style={{ fontSize: "10px", fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</span>
+        ))}
+      </div>
+      {isFetching ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+          {[...Array(6)].map((_, i) => <div key={i} className="skeleton" style={{ height: "48px" }} />)}
+        </div>
+      ) : (
+        <div>
+          {transactions.map(tx => {
+            const isD = tx.type === "DEBIT";
+            const cm = CAT_META[tx.category ?? "Other"] ?? CAT_META["Other"];
+            const Icon = cm.icon;
+            const name = resolveMerchant(tx.description);
             return (
-              <div key={i}>
-                <div className="flex justify-between text-[12px] mb-1">
-                  <span className="text-zinc-400 truncate pr-2">{c.label}</span>
-                  <span className="font-bold text-zinc-300 shrink-0">{c.meta}</span>
+              <div key={tx.id} className="tx-row">
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: cm.bg,
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon size={14} color={cm.color} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a" }}>{name}</p>
+                    <p style={{ fontSize: "10px", color: "#94a3b8", marginTop: "1px" }}>{bankVia(tx.description)}</p>
+                  </div>
                 </div>
-                <div className="h-1 rounded-full bg-[#1f1f23]">
-                  <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: color }} />
-                </div>
+                <span style={{ fontSize: "10px", fontWeight: 600, color: cm.color, background: cm.bg,
+                  padding: "3px 8px", borderRadius: "6px", display: "inline-block", whiteSpace: "nowrap" }}>
+                  {tx.category ?? "Other"}
+                </span>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: isD ? "#f43f5e" : "#10b981", fontFamily: "'JetBrains Mono', monospace" }}>
+                  {isD ? "−" : "+"}₹{tx.amount.toLocaleString("en-IN")}
+                </span>
+                <span style={{ fontSize: "11px", color: "#94a3b8" }}>{fmtDate(tx.date)}</span>
               </div>
             );
           })}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TOP MERCHANTS
-// ─────────────────────────────────────────────────────────────────────────────
-
-function TopMerchants({ insights }: { insights: Insight[] }) {
-  const merchants = insights.filter(i => i.type === "TOP_MERCHANT").slice(0, 7);
-  const max = Math.max(...merchants.map(m => parseFloat(m.value.replace(/[₹,]/g, ""))));
-
-  return (
-    <div className="rounded-2xl bg-[#141416] border border-white/[0.07] p-6">
-      <h3 className="text-[15px] font-bold text-white mb-1">Top Merchants</h3>
-      <p className="text-[12px] text-zinc-600 mb-5">Where money went</p>
-      <div className="space-y-3.5">
-        {merchants.map((m, i) => {
-          const amt = parseFloat(m.value.replace(/[₹,]/g, ""));
-          const pct = (amt / max) * 100;
-          const color = CHART_COLORS[i % CHART_COLORS.length];
-          return (
-            <div key={i} className="flex items-center gap-3">
-              <span className="text-[11px] font-black w-4 text-center shrink-0" style={{ color }}>{i + 1}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between text-[12px] mb-1">
-                  <span className="text-zinc-300 truncate font-medium pr-2">{m.label}</span>
-                  <span className="font-bold shrink-0" style={{ color }}>{m.value}</span>
-                </div>
-                <div className="h-1 rounded-full bg-[#1f1f23]">
-                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SMART INSIGHTS PANEL
-// ─────────────────────────────────────────────────────────────────────────────
-
-function InsightsPanel({ insights }: { insights: Insight[] }) {
-  const saving = insights.filter(i => i.type === "SAVING_OPPORTUNITY");
-  const subs   = insights.filter(i => i.type === "SUBSCRIPTION").slice(0, 4);
-  const large  = insights.filter(i => i.type === "LARGEST_TRANSACTION").slice(0, 4);
-
-  return (
-    <div className="space-y-4">
-      {/* Saving opportunity — hero card */}
-      {saving.map((s, i) => (
-        <div key={i} className="rounded-2xl p-5 relative overflow-hidden border border-[#34D399]/20 bg-gradient-to-br from-[#34D399]/8 to-[#141416]">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#34D399]/8 rounded-full blur-2xl" />
-          <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-3.5 h-3.5 text-[#34D399]" />
-            <span className="text-[10px] font-black text-[#34D399] uppercase tracking-[0.15em]">Saving Opportunity</span>
+      )}
+      {paged && paged.totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #f1f5f9" }}>
+          <button className="nav-btn" disabled={paged.first} onClick={() => setPage(p => p - 1)}>
+            <ChevronLeft size={12} /> Prev
+          </button>
+          <div style={{ display: "flex", gap: "4px" }}>
+            {Array.from({ length: Math.min(paged.totalPages, 5) }, (_, i) => {
+              const p = paged.totalPages <= 5 ? i : Math.max(0, paged.page - 2) + i;
+              if (p >= paged.totalPages) return null;
+              return (
+                <button key={p} className={`page-btn${p === paged.page ? " active" : ""}`} onClick={() => setPage(p)}>{p + 1}</button>
+              );
+            })}
           </div>
-          <h4 className="text-[13px] font-bold text-white mb-1">{s.label}</h4>
-          <p className="text-2xl font-black text-[#34D399]">{s.value}</p>
-          {s.meta && <p className="text-[11px] text-zinc-500 mt-1.5">{s.meta}</p>}
-        </div>
-      ))}
-
-      {/* Largest transactions */}
-      <div className="rounded-2xl bg-[#141416] border border-white/[0.07] p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertCircle className="w-3.5 h-3.5 text-[#FF6B35]" />
-          <span className="text-[10px] font-black text-[#FF6B35] uppercase tracking-[0.15em]">Biggest Spends</span>
-        </div>
-        <div className="space-y-3">
-          {large.map((l, i) => (
-            <div key={i} className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[12px] font-medium text-zinc-300 truncate leading-snug">
-                  {l.label.length > 28 ? l.label.slice(0, 28) + "…" : l.label}
-                </p>
-                <p className="text-[10px] text-zinc-600 mt-0.5">{l.meta}</p>
-              </div>
-              <p className="text-[12px] font-black text-[#FF6B35] shrink-0">{l.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Recurring payments */}
-      <div className="rounded-2xl bg-[#141416] border border-white/[0.07] p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <TrendingDown className="w-3.5 h-3.5 text-[#FBBF24]" />
-            <span className="text-[10px] font-black text-[#FBBF24] uppercase tracking-[0.15em]">Recurring</span>
-          </div>
-          <button className="text-[10px] text-zinc-600 hover:text-zinc-300 flex items-center gap-0.5 transition-colors">
-            All <ChevronRight className="w-3 h-3" />
+          <button className="nav-btn" disabled={paged.last} onClick={() => setPage(p => p + 1)}>
+            Next <ChevronRight size={12} />
           </button>
         </div>
-        <div className="space-y-3">
-          {subs.map((s, i) => (
-            <div key={i} className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[12px] font-medium text-zinc-300 truncate">{s.label}</p>
-                <p className="text-[10px] text-zinc-600">{s.meta}</p>
-              </div>
-              <p className="text-[11px] font-black text-[#FBBF24] shrink-0">{s.value.split("·")[0].trim()}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TRANSACTION TABLE
-// ─────────────────────────────────────────────────────────────────────────────
-
-function TxTable({ transactions }: { transactions: Transaction[] }) {
-  const [show, setShow] = useState(12);
-  const [filter, setFilter] = useState<"ALL" | "DEBIT" | "CREDIT">("ALL");
-
-  const visible = transactions
-    .filter(tx => filter === "ALL" || tx.type === filter)
-    .slice(0, show);
-
-  return (
-    <div className="rounded-2xl bg-[#141416] border border-white/[0.07] p-6">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h3 className="text-[15px] font-bold text-white">Transactions</h3>
-          <p className="text-[12px] text-zinc-600 mt-0.5">{transactions.length} total</p>
-        </div>
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 bg-[#0c0c0e] border border-white/[0.06] rounded-xl p-1">
-          {(["ALL","DEBIT","CREDIT"] as const).map(f => (
-            <button key={f} onClick={() => { setFilter(f); setShow(12); }}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                filter === f
-                  ? f === "DEBIT" ? "bg-red-500/15 text-red-400"
-                    : f === "CREDIT" ? "bg-green-500/15 text-green-400"
-                    : "bg-white/[0.06] text-white"
-                  : "text-zinc-600 hover:text-zinc-400"
-              }`}>
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Table header */}
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-3 mb-2">
-        {["Description","Category","Date","Amount"].map(h => (
-          <p key={h} className="text-[10px] font-black text-zinc-700 uppercase tracking-widest">{h}</p>
-        ))}
-      </div>
-
-      {/* Rows */}
-      <div className="space-y-1">
-        {visible.map(tx => {
-          const isD = tx.type === "DEBIT";
-          const c   = cat(tx.category ?? "Other");
-          const Icon = c.icon;
-          return (
-            <div key={tx.id}
-              className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-3 py-2.5 rounded-xl hover:bg-white/[0.03] transition-all group cursor-default">
-              {/* Desc */}
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
-                  <Icon className="w-3.5 h-3.5" style={{ color: c.color }} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-zinc-200 truncate leading-snug">{clean(tx.description)}</p>
-                  <p className="text-[10px] text-zinc-600">Bal ₹{tx.balance.toFixed(0)}</p>
-                </div>
-              </div>
-              {/* Category */}
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg whitespace-nowrap"
-                style={{ background: c.bg, color: c.color }}>
-                {tx.category ?? "Other"}
-              </span>
-              {/* Date */}
-              <p className="text-[11px] text-zinc-600 whitespace-nowrap">{tx.date}</p>
-              {/* Amount */}
-              <p className={`text-[13px] font-black whitespace-nowrap text-right ${isD ? "text-red-400" : "text-green-400"}`}>
-                {isD ? "−" : "+"}₹{tx.amount.toLocaleString("en-IN")}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {show < transactions.filter(t => filter === "ALL" || t.type === filter).length && (
-        <button onClick={() => setShow(s => s + 12)}
-          className="mt-4 w-full py-2.5 rounded-xl border border-white/[0.06] text-zinc-500 text-[12px] font-semibold hover:bg-white/[0.03] hover:text-zinc-300 transition-all">
-          Load more
-        </button>
       )}
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LOADING SKELETON
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── AI INSIGHT SIDEBAR ───────────────────────────────────────────────────────
 
-function LoadingState() {
+const TRAIT_CFG: Record<string, { color: string; bg: string; label: string }> = {
+  impulsive:    { color: "#dc2626", bg: "#fef2f2", label: "Impulsive" },
+  inconsistent: { color: "#7c3aed", bg: "#f5f3ff", label: "Inconsistent" },
+  disciplined:  { color: "#059669", bg: "#ecfdf5", label: "Disciplined" },
+  cautious:     { color: "#0284c7", bg: "#f0f9ff", label: "Cautious" },
+  anxious:      { color: "#d97706", bg: "#fffbeb", label: "Anxious" },
+};
+const EMOTION_COLOR: Record<string, string> = {
+  impulsive: "#dc2626", anxious: "#d97706", disciplined: "#059669",
+  avoidant: "#7c3aed", reactive: "#db2777",
+};
+
+function Collapsible({ icon, label, color = "#64748b", children, defaultOpen = true }: any) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="min-h-screen bg-[#0c0c0e] flex items-center justify-center">
-      <div className="text-center space-y-5">
-        <div className="relative w-14 h-14 mx-auto">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF6B35] to-[#f59e0b] flex items-center justify-center font-black text-black text-xl">M</div>
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#FF6B35] to-[#f59e0b] animate-ping opacity-30" />
+    <div style={{ marginBottom: "16px" }}>
+      <button className="section-toggle" onClick={() => setOpen((o: boolean) => !o)}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ color }}>{icon}</div>
+          <span style={{ fontSize: "10px", fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</span>
         </div>
-        <div className="space-y-1">
-          <p className="text-white font-bold text-[15px]">Analysing your statement</p>
-          <p className="text-zinc-600 text-[13px]">Crunching numbers, finding insights…</p>
+        {open ? <ChevronDown size={13} color="#cbd5e1" /> : <ChevronRight size={13} color="#cbd5e1" />}
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
+function AISidebar({ analysis, loading }: { analysis: AnalysisData | null; loading: boolean }) {
+  const params = useParams();
+  const statementId = params.statementId;
+  const router = useRouter();
+
+  if (loading) return (
+    <aside style={{ width: "320px", flexShrink: 0, height: "100%", overflowY: "auto", borderLeft: "1px solid #e8edf5", background: "#fff", padding: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+      {[90, 160, 100, 140, 110].map((h, i) => <div key={i} className="skeleton" style={{ height: `${h}px` }} />)}
+    </aside>
+  );
+  if (!analysis) return null;
+
+  const tc = TRAIT_CFG[analysis.moneyPersonality?.trait] ?? TRAIT_CFG.cautious;
+  const stability = analysis.spendingPulse?.stabilityScore ?? 0;
+  const pulseColor = ({ volatile: "#f43f5e", stable: "#10b981", declining: "#f43f5e", improving: "#0ea5e9" } as Record<string, string>)[analysis.spendingPulse?.status] ?? "#64748b";
+
+  return (
+    <aside style={{ width: "320px", flexShrink: 0, height: "100%", overflowY: "auto",
+      borderLeft: "1px solid #e8edf5", background: "#fcfcfd", padding: "22px 20px" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: "#eef2ff", color: "#6366f1",
+          fontSize: "10px", fontWeight: 700, padding: "4px 11px", borderRadius: "100px", marginBottom: "12px", letterSpacing: "0.06em" }}>
+          <Sparkles size={10} /> AI INSIGHTS
         </div>
-        <div className="flex justify-center gap-1.5">
-          {[0,1,2].map(i => (
-            <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#FF6B35]"
-              style={{ animation: `bounce 1s ${i * 0.2}s infinite` }} />
+        <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.04em", lineHeight: 1.2 }}>
+          Financial<br />Intelligence
+        </h2>
+      </div>
+
+      <div style={{ background: "#0f172a", borderRadius: "18px", padding: "20px", marginBottom: "16px", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", bottom: -20, right: -20, width: "90px", height: "90px", borderRadius: "50%", background: "rgba(99,102,241,0.12)" }} />
+        <div style={{ position: "absolute", top: -10, right: 30, width: "50px", height: "50px", borderRadius: "50%", background: "rgba(99,102,241,0.08)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "9px", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Brain size={15} color="#a5b4fc" />
+          </div>
+          <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.1em" }}>Money Personality</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: "10px" }}>
+          <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#fff", letterSpacing: "-0.03em" }}>
+            {analysis.moneyPersonality?.archetype}
+          </h3>
+          <div style={{ background: tc.bg, color: tc.color, fontSize: "10px", fontWeight: 700, padding: "4px 10px", borderRadius: "100px", flexShrink: 0 }}>
+            {tc.label}
+          </div>
+        </div>
+        <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", lineHeight: 1.75, marginBottom: "16px" }}>
+          {analysis.moneyPersonality?.description}
+        </p>
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+            <span style={{ fontSize: "10px", color: "#475569", fontWeight: 600 }}>Stability Score</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: pulseColor, fontFamily: "'JetBrains Mono', monospace" }}>{stability}%</span>
+          </div>
+          <div style={{ display: "flex", gap: "3px" }}>
+            {Array.from({ length: 10 }, (_, i) => (
+              <div key={i} style={{ height: "4px", flex: 1, borderRadius: "2px", background: i < Math.floor(stability / 10) ? pulseColor : "rgba(255,255,255,0.08)" }} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: "#f8fafc", borderRadius: "14px", padding: "14px 16px", marginBottom: "16px", borderLeft: "3px solid #6366f1" }}>
+        <p style={{ fontSize: "12px", lineHeight: 1.8, color: "#334155", fontStyle: "italic" }}>"{analysis.summary}"</p>
+      </div>
+
+      <Collapsible icon={<Activity size={13} />} label="Behavioral Signals" color="#f43f5e">
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {analysis.behavioralSignals?.slice(0, 3).map((s, i) => {
+            const ec = EMOTION_COLOR[s.emotion] ?? "#64748b";
+            return (
+              <div key={i} style={{ borderRadius: "12px", border: `1px solid ${ec}22`, background: `${ec}06`, padding: "12px 14px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <div>
+                    <p style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{s.label}</p>
+                    <p style={{ fontSize: "9px", color: ec, fontWeight: 600, textTransform: "capitalize", marginTop: "1px" }}>{s.emotion} · {s.intensity}/10</p>
+                  </div>
+                  <div style={{ display: "flex", gap: "2px" }}>
+                    {Array.from({ length: 10 }, (_, j) => (
+                      <div key={j} style={{ width: "4px", height: "14px", borderRadius: "2px", background: j < s.intensity ? ec : `${ec}22` }} />
+                    ))}
+                  </div>
+                </div>
+                <p style={{ fontSize: "11px", lineHeight: 1.65, color: "#475569" }}>{s.observation}</p>
+              </div>
+            );
+          })}
+        </div>
+      </Collapsible>
+
+      <Collapsible icon={<Eye size={13} />} label="Hidden Patterns" color="#8b5cf6">
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {analysis.hiddenPatterns?.slice(0, 3).map((p, i) => (
+            <div key={i} style={{ borderRadius: "12px", background: "#f5f3ff", border: "1px solid #e9d5ff", padding: "12px 14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "5px" }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "capitalize", color: "#8b5cf6", background: "#ede9fe", padding: "2px 7px", borderRadius: "5px" }}>{p.category}</span>
+                <h4 style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{p.title}</h4>
+              </div>
+              <p style={{ fontSize: "11px", lineHeight: 1.65, color: "#475569" }}>{p.insight}</p>
+            </div>
           ))}
         </div>
+      </Collapsible>
+
+      {analysis.nextActions?.length > 0 && (
+        <div style={{ marginBottom: "20px" }}>
+          <SectionLabel>Action Items</SectionLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {analysis.nextActions.map((a, i) => (
+              <div key={i} style={{ display: "flex", gap: "10px", background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: "10px", padding: "10px 12px" }}>
+                <div style={{ width: "18px", height: "18px", borderRadius: "5px", background: "#6366f1", color: "#fff",
+                  fontSize: "9px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {i + 1}
+                </div>
+                <p style={{ fontSize: "11px", lineHeight: 1.65, color: "#374151" }}>{a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button className="ai-action-btn" onClick={() => router.push(`/dashboard/${statementId}/analysis`)}>
+        View Full Analysis →
+      </button>
+    </aside>
+  );
+}
+
+// ─── STATEMENT HERO ───────────────────────────────────────────────────────────
+
+function StatementHero({ statement, dashboard }: { statement: StatementData | null; dashboard: DashboardData }) {
+  if (!statement) return null;
+  const savings = dashboard.totalIncome - dashboard.totalSpending;
+  const savingsRate = dashboard.totalIncome > 0 ? ((savings / dashboard.totalIncome) * 100).toFixed(1) : "0";
+
+  const stats = [
+    { l: "Income",    v: fmtCompact(dashboard.totalIncome),   c: "#4ade80" },
+    { l: "Spending",  v: fmtCompact(dashboard.totalSpending), c: "#f87171" },
+    { l: "Savings",   v: fmtCompact(savings),                 c: "#a5b4fc" },
+    { l: "Save Rate", v: `${savingsRate}%`,                   c: "#fcd34d" },
+  ];
+
+  return (
+    <div className="fade-up" style={{
+      background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f2445 100%)",
+      borderRadius: "22px", padding: "26px 28px",
+      display: "grid", gridTemplateColumns: "1fr auto", gap: "20px", alignItems: "center",
+      position: "relative", overflow: "hidden",
+    }}>
+      <div style={{ position: "absolute", top: -40, right: 120, width: "160px", height: "160px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -30, right: 30, width: "100px", height: "100px", borderRadius: "50%", background: "rgba(14,165,233,0.08)", pointerEvents: "none" }} />
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+          <div style={{ width: "38px", height: "38px", borderRadius: "11px", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <FileText size={17} color="#a5b4fc" />
+          </div>
+          <div>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "#fff" }}>{statement.originalFileName}</p>
+            <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.38)", marginTop: "2px" }}>
+              {formatPeriodLabel(statement.periodFrom, statement.periodTo)} · Uploaded {new Date(statement.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+            </p>
+          </div>
+          <div style={{ marginLeft: "10px", display: "flex", alignItems: "center", gap: "5px", background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.18)", borderRadius: "100px", padding: "4px 11px" }}>
+            <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#4ade80" }} />
+            <span style={{ fontSize: "10px", color: "#4ade80", fontWeight: 600 }}>{statement.status}</span>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "28px" }}>
+          {stats.map((s, i) => (
+            <div key={i}>
+              <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.l}</p>
+              <p style={{ fontSize: "20px", fontWeight: 800, color: s.c, letterSpacing: "-0.04em", fontFamily: "'JetBrains Mono', monospace" }}>{s.v}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <p style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Balance</p>
+        <p style={{ fontSize: "36px", fontWeight: 900, color: "#fff", letterSpacing: "-0.05em", lineHeight: 1, fontFamily: "'JetBrains Mono', monospace" }}>
+          {fmtCompact(dashboard.totalBalance)}
+        </p>
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PAGE
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── INSIGHTS STRIP ───────────────────────────────────────────────────────────
+
+function InsightsStrip({ insights }: { insights: Insight[] }) {
+  if (!insights?.length) return null;
+  const icons: Record<string, React.ReactNode> = {
+    INCOME:   <ArrowUpRight size={13} color="#10b981" />,
+    SPENDING: <ArrowDownRight size={13} color="#f43f5e" />,
+    SAVINGS:  <Target size={13} color="#f59e0b" />,
+    DEFAULT:  <Sparkles size={13} color="#6366f1" />,
+  };
+  return (
+    <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "2px" }}>
+      {insights.slice(0, 6).map((ins, i) => (
+        <div key={i} className="card" style={{ padding: "14px 16px", flexShrink: 0, minWidth: "155px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "6px" }}>
+            {icons[ins.type] ?? icons.DEFAULT}
+            <span style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>{ins.type}</span>
+          </div>
+          <p style={{ fontSize: "11px", fontWeight: 600, color: "#334155" }}>{ins.label}</p>
+          <p style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a", marginTop: "2px", fontFamily: "'JetBrains Mono', monospace" }}>{ins.value}</p>
+          {ins.meta && <p style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px" }}>{ins.meta}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── LOADING ──────────────────────────────────────────────────────────────────
+
+function LoadingState() {
+  return (
+    <div style={{ minHeight: "100vh", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora', sans-serif" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: "48px", height: "48px", borderRadius: "14px", background: "linear-gradient(135deg, #6366f1, #0ea5e9)", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <LayoutDashboard size={20} color="#fff" />
+        </div>
+        <p style={{ fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>Loading your dashboard…</p>
+        <p style={{ color: "#94a3b8", fontSize: "13px" }}>Fetching your financial data</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const params      = useParams();
+  const params = useParams();
   const statementId = params.statementId as string;
+  const router = useRouter();
 
-  const { data: res, isLoading, isError } = useGetStatementByIdQuery(statementId);
+  const { data: dashRes, isLoading: dashLoading } = useGetDashboardQuery(statementId);
+  const { data: stmtRes, isLoading: stmtLoading } = useGetStatementByIdQuery(statementId);
+  const [analyzeFinancialProfile, { isLoading: aiLoading }] = useAnalyzeFinancialProfileMutation();
+  const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
 
-  if (isLoading) return <LoadingState />;
+  useEffect(() => {
+    if (!statementId) return;
+    analyzeFinancialProfile(statementId)
+      .unwrap()
+      .then(res => setAnalysis(res?.data ?? res ?? null))
+      .catch(err => console.error("AI Analysis Error:", err));
+  }, [statementId, analyzeFinancialProfile]);
 
-  if (isError || !res?.data) {
-    return (
-      <div className="min-h-screen bg-[#0c0c0e] flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <p className="text-white font-bold">Could not load statement</p>
-          <p className="text-zinc-600 text-sm">Check your connection or try again.</p>
-        </div>
+  const dashboard: DashboardData | null = dashRes?.data?.data ?? dashRes?.data ?? null;
+  const statement: StatementData | null = stmtRes?.data?.data ?? stmtRes?.data ?? null;
+
+  if (dashLoading || stmtLoading) return <LoadingState />;
+  if (!dashboard?.monthlyOverview) return (
+    <div style={{ minHeight: "100vh", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora', sans-serif" }}>
+      <div style={{ textAlign: "center" }}>
+        <p style={{ fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>Could not load dashboard</p>
+        <p style={{ color: "#94a3b8", fontSize: "13px" }}>Check your connection or try again.</p>
       </div>
-    );
-  }
-
-  const data: DashboardData = res.data;
-  const { transactions, insights } = data;
-  const month = insights.find(i => i.type === "MONTHLY_TREND")?.label ?? "This Month";
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#0c0c0e] text-white flex" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900&display=swap');
-        *, *::before, *::after { box-sizing: border-box; }
-        body { background: #0c0c0e; }
-        ::-webkit-scrollbar { width: 3px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 4px; }
-        @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
-      `}</style>
-
-      <Sidebar active="Overview" />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar file={data.originalFileName} month={month} />
-
-        <main className="flex-1 overflow-y-auto p-6 space-y-5">
-
-          {/* Page heading */}
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#FF6B35]" />
-                <span className="text-[10px] font-black text-[#FF6B35] uppercase tracking-[0.2em]">Financial Intelligence</span>
-              </div>
-              <h1 className="text-3xl font-black tracking-tighter">Your Financial Pulse.</h1>
-            </div>
-            <button className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF6B35]/10 border border-[#FF6B35]/20 text-[#FF6B35] text-[12px] font-bold hover:bg-[#FF6B35]/15 transition-all">
-              <Sparkles className="w-3.5 h-3.5" />
-              Ask AI Coach
-            </button>
+    <div style={{ minHeight: "100vh", background: "#f1f5f9", color: "#0f172a", display: "flex", flexDirection: "column", fontFamily: "'Sora', sans-serif" }}>
+      <style>{STYLES}</style>
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <main style={{ flex: 1, overflowY: "auto", padding: "20px 22px", display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
+          <StatementHero statement={statement} dashboard={dashboard} />
+          {statement?.insights?.length > 0 && <InsightsStrip insights={statement.insights} />}
+          <StatCards dashboard={dashboard} />
+          <div className="fade-up fade-up-4">
+            <WeeklySpendRhythm statementId={statementId} />
           </div>
-
-          {/* Hero stats */}
-          <HeroRow insights={insights} transactions={transactions} />
-
-          {/* Charts */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-            <SpendingChart transactions={transactions} />
-            <BalanceChart transactions={transactions} />
+          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "16px" }} className="fade-up fade-up-4">
+            <CategoryBreakdown spendingByCategory={dashboard.spendingByCategory} />
+            <RecurringCharges statementId={statementId} />
           </div>
-
-          {/* Category + Merchants */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-            <CategoryPie insights={insights} />
-            <TopMerchants insights={insights} />
-          </div>
-
-          {/* Transactions + Insights */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-            <div className="xl:col-span-2">
-              <TxTable transactions={transactions} />
-            </div>
-            <InsightsPanel insights={insights} />
-          </div>
-
+          <TransactionsTable statementId={statementId} />
         </main>
+        <AISidebar analysis={analysis} loading={aiLoading} />
       </div>
+      <AIChatPanel statementId={statementId} />
+
     </div>
   );
 }

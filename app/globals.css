@@ -1,7 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Cabinet+Grotesk:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
-
+@source "./**/*.{tsx,ts,jsx,js}";
+@source "../components/**/*.{tsx,ts}";
+@source "../app";
 * { box-sizing: border-box; }
 
 body { font-family: 'Cabinet Grotesk', system-ui, sans-serif !important; }

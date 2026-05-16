@@ -16,15 +16,16 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] =
     useState(false);
 
-    const router = useRouter();
+  const router = useRouter();
 
-    const [login] = useLoginMutation();
+  const [login, { isLoading }] =
+    useLoginMutation();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
-  // Handle Input Change
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -39,57 +40,70 @@ export default function LoginPage() {
   ) => {
     e.preventDefault();
 
-    login(formData).then((res)=>{
-      if(res.data){
-        toast.success("Login Succefull!")
-        localStorage.setItem("access_token" , res.data?.data.accessToken)
-        router.push(res.data.data.hasStatement ? "/dashboard" : "/upload");
+    try {
+      const res: any = await login(
+        formData
+      );
+
+      if (res?.data) {
+        toast.success("Login Successful!");
+
+        localStorage.setItem(
+          "access_token",
+          res.data?.data?.accessToken
+        );
+
+        router.push(
+          res.data.data.user.hasStatement
+            ? `/dashboard/${res.data.data.user.latestStatementId}`
+            : "/upload"
+        );
       }
-    })
-    console.log(formData);
+    } catch (error) {
+      toast.error("Login failed");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0C] text-white flex items-center justify-center px-4 relative overflow-hidden">
-      
-      {/* Background Glow */}
-      <div className="absolute top-[-120px] left-[-120px] w-[350px] h-[350px] bg-[#E8622A]/10 blur-3xl rounded-full" />
-
-      <div className="w-full max-w-md relative z-10">
+    <div className="min-h-screen bg-[#f4f2ee] flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
         
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-10 justify-center">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#E8622A] to-[#D4A017] flex items-center justify-center text-black font-bold text-lg">
-            M
+        <div className="flex items-center justify-center gap-3 mb-10">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#4f6ef7] to-[#7c3aed] flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <span className="text-white font-extrabold text-lg">
+              M
+            </span>
           </div>
 
           <div>
-            <h1 className="text-xl font-bold tracking-tight">
+            <h1 className="text-2xl font-extrabold tracking-tight text-[#111]">
               MoneyLens
             </h1>
 
-            <p className="text-xs text-zinc-500">
-              AI Powered Finance Intelligence
+            <p className="text-xs text-[#9ca3af] mt-0.5">
+              Financial Intelligence Platform
             </p>
           </div>
         </div>
 
         {/* Card */}
-        <div className="bg-[#111113] border border-[#1E1E22] rounded-3xl p-8 shadow-2xl">
+        <div className="bg-white border border-[#ececec] rounded-[28px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
           
           {/* Heading */}
           <div className="mb-8">
-            <p className="text-sm uppercase tracking-[0.2em] text-[#E8622A] font-semibold mb-3">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#4f6ef7] mb-3">
               Welcome Back
             </p>
 
-            <h2 className="text-4xl leading-tight font-serif">
+            <h2 className="text-[36px] leading-[1.05] tracking-[-0.04em] font-extrabold text-[#111]">
               Login to your account
             </h2>
 
-            <p className="text-zinc-500 mt-3 text-sm">
-              Continue tracking your spending
-              and wealth journey.
+            <p className="text-sm text-[#9ca3af] mt-4 leading-6">
+              Continue tracking your transactions,
+              spending patterns and financial
+              insights.
             </p>
           </div>
 
@@ -101,12 +115,12 @@ export default function LoginPage() {
             
             {/* Email */}
             <div>
-              <label className="text-sm text-zinc-400 mb-2 block">
+              <label className="block text-[13px] font-semibold text-[#374151] mb-2">
                 Email Address
               </label>
 
-              <div className="h-14 rounded-2xl bg-[#0D0D0F] border border-[#222226] px-4 flex items-center gap-3 focus-within:border-[#E8622A] transition">
-                <Mail className="w-5 h-5 text-zinc-500" />
+              <div className="h-14 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-4 flex items-center gap-3 transition-all focus-within:border-[#4f6ef7] focus-within:bg-white">
+                <Mail className="w-[18px] h-[18px] text-[#9ca3af]" />
 
                 <input
                   type="email"
@@ -114,7 +128,7 @@ export default function LoginPage() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="you@example.com"
-                  className="bg-transparent outline-none flex-1 text-sm placeholder:text-zinc-600"
+                  className="flex-1 bg-transparent outline-none text-sm text-[#111] placeholder:text-[#9ca3af]"
                   required
                 />
               </div>
@@ -122,12 +136,12 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="text-sm text-zinc-400 mb-2 block">
+              <label className="block text-[13px] font-semibold text-[#374151] mb-2">
                 Password
               </label>
 
-              <div className="h-14 rounded-2xl bg-[#0D0D0F] border border-[#222226] px-4 flex items-center gap-3 focus-within:border-[#E8622A] transition">
-                <Lock className="w-5 h-5 text-zinc-500" />
+              <div className="h-14 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-4 flex items-center gap-3 transition-all focus-within:border-[#4f6ef7] focus-within:bg-white">
+                <Lock className="w-[18px] h-[18px] text-[#9ca3af]" />
 
                 <input
                   type={
@@ -139,7 +153,7 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="bg-transparent outline-none flex-1 text-sm placeholder:text-zinc-600"
+                  className="flex-1 bg-transparent outline-none text-sm text-[#111] placeholder:text-[#9ca3af]"
                   required
                 />
 
@@ -150,58 +164,62 @@ export default function LoginPage() {
                       !showPassword
                     )
                   }
+                  className="text-[#9ca3af] hover:text-[#6b7280] transition"
                 >
                   {showPassword ? (
-                    <EyeOff className="w-5 h-5 text-zinc-500" />
+                    <EyeOff className="w-[18px] h-[18px]" />
                   ) : (
-                    <Eye className="w-5 h-5 text-zinc-500" />
+                    <Eye className="w-[18px] h-[18px]" />
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Forgot Password */}
+            {/* Forgot */}
             <div className="flex justify-end">
               <button
                 type="button"
-                className="text-sm text-[#E8622A] hover:text-[#f0743b]"
+                className="text-sm font-semibold text-[#4f6ef7] hover:text-[#3d5ce6] transition"
               >
                 Forgot password?
               </button>
             </div>
 
-            {/* Submit Button */}
+            {/* Submit */}
             <button
               type="submit"
-              className="w-full h-14 rounded-2xl bg-[#E8622A] hover:bg-[#f0743b] transition-all font-semibold text-white shadow-lg shadow-[#E8622A]/20"
+              disabled={isLoading}
+              className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#4f6ef7] to-[#7c3aed] text-white font-bold text-sm shadow-lg shadow-blue-500/20 hover:scale-[0.99] active:scale-[0.98] transition-all disabled:opacity-60"
             >
-              Login to MoneyLens
+              {isLoading
+                ? "Logging in..."
+                : "Login to MoneyLens"}
             </button>
           </form>
 
           {/* Divider */}
-          <div className="flex items-center gap-4 my-7">
-            <div className="h-px flex-1 bg-[#222226]" />
+          <div className="flex items-center gap-4 my-8">
+            <div className="h-px bg-[#ececec] flex-1" />
 
-            <span className="text-xs text-zinc-600">
+            <span className="text-xs text-[#9ca3af] font-medium">
               OR
             </span>
 
-            <div className="h-px flex-1 bg-[#222226]" />
+            <div className="h-px bg-[#ececec] flex-1" />
           </div>
 
-          {/* Google Button */}
-          <button className="w-full h-14 rounded-2xl border border-[#222226] hover:border-zinc-700 bg-[#0D0D0F] transition text-sm font-medium">
+          {/* Google */}
+          <button className="w-full h-14 rounded-2xl border border-[#e5e7eb] bg-white hover:bg-[#fafafa] transition text-sm font-semibold text-[#374151]">
             Continue with Google
           </button>
 
           {/* Footer */}
-          <p className="text-center text-sm text-zinc-500 mt-8">
+          <p className="text-center text-sm text-[#9ca3af] mt-8">
             Don’t have an account?
 
             <Link
               href="/signup"
-              className="text-[#E8622A] ml-2 hover:text-[#f0743b]"
+              className="ml-2 text-[#4f6ef7] font-semibold hover:text-[#3d5ce6]"
             >
               Create account
             </Link>
