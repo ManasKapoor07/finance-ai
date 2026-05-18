@@ -26,7 +26,7 @@ export default function LoginPage() {
         localStorage.setItem("access_token", res.data?.data?.accessToken);
         router.push(
           res.data.data.user.hasStatement
-            ? `/dashboard/${res.data.data.user.latestStatementId}`
+            ? `/dashboard`
             : "/upload"
         );
       }
