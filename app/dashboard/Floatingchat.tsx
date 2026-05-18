@@ -37,15 +37,18 @@ interface LocalMessage {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  new Date(iso).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-const generateId() = () => {
+const generateId = (): string => {
   try {
     if (
       typeof crypto !== "undefined" &&
       typeof crypto.randomUUID === "function"
     ) {
-      return generateId();
+      return crypto.randomUUID();
     }
   } catch (err) {
     console.error("UUID generation failed:", err);
