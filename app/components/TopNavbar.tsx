@@ -54,7 +54,7 @@ const IconSparkles = () => (
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/goals", label: "Goals" },
-  { href: "/dashboard/messages", label: "Messages" },
+  // { href: "/dashboard/messages", label: "Messages" },
 ];
 
 // ── Profile Dropdown ──────────────────────────────────────────────────

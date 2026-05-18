@@ -66,11 +66,11 @@ const NAV_ITEMS = [
     label: "Goals",
     icon: <IconGoals />,
   },
-  {
-    href: "/dashboard/messages",
-    label: "Messages",
-    icon: <IconMessages />,
-  },
+  // {
+  //   href: "/dashboard/messages",
+  //   label: "Messages",
+  //   icon: <IconMessages />,
+  // },
 ];
 
 // ── Sidebar ───────────────────────────────────────────────────────────
