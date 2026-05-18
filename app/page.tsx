@@ -1,146 +1,73 @@
 "use client";
 
-import { useState, useEffect, useRef, ReactNode } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  Area, AreaChart, CartesianGrid, ResponsiveContainer,
-  Tooltip, XAxis, YAxis, BarChart, Bar,
-} from "recharts";
+  LogIn, UserPlus, Upload, ArrowRight, Brain, Target, AlertTriangle,
+  TrendingUp, Lock, Shield, Trash2, EyeOff, CheckCircle, XCircle,
+  Sparkles, FileText, ChevronRight, Menu, X
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
-type RevealProps = { children: ReactNode; delay?: number; className?: string };
-
-// ─── DATA ────────────────────────────────────────────────────────────────────
-const SALARY_CYCLE = [
-  { day: "D1",  spend: 18000, label: "Salary Day",      zone: "credit",  note: "₹92K credited" },
-  { day: "D2",  spend: 8200,  label: "Immediate Spend", zone: "danger",  note: "Impulse surge" },
-  { day: "D3",  spend: 11400, label: "Splurge Window",  zone: "danger",  note: "65% discretionary" },
-  { day: "D5",  spend: 4800,  label: "Settling Down",   zone: "warning", note: "Still elevated" },
-  { day: "D7",  spend: 3200,  label: "Normalizing",     zone: "neutral", note: "Routine spend" },
-  { day: "D10", spend: 2800,  label: "Steady State",    zone: "neutral", note: "Controlled" },
-  { day: "D14", spend: 2400,  label: "Mid-Month Low",   zone: "safe",    note: "Disciplined" },
-  { day: "D18", spend: 3600,  label: "Stress Zone",     zone: "warning", note: "Anxiety creeping" },
-  { day: "D22", spend: 5100,  label: "Pre-Paycheck",    zone: "danger",  note: "Stress spending" },
-  { day: "D25", spend: 6800,  label: "Critical Zone",   zone: "critical",note: "Low balance fear" },
-  { day: "D28", spend: 4200,  label: "Survival Mode",   zone: "critical",note: "Cutting back" },
-  { day: "D30", spend: 2100,  label: "Recovery",        zone: "safe",    note: "Pre-salary calm" },
-];
-
-const ZONE_COLORS: Record<string, string> = {
-  credit:   "#2EB87A",
-  danger:   "#E8622A",
-  warning:  "#D4A017",
-  neutral:  "#3A9FD8",
-  safe:     "#2EB87A",
-  critical: "#ef4444",
+// ─── Theme tokens ─────────────────────────────────────────────────────────────
+const T = {
+  bg: "#080B14",
+  surface: "rgba(255,255,255,0.04)",
+  border: "rgba(255,255,255,0.08)",
+  borderHover: "rgba(255,255,255,0.15)",
+  text: "#ffffff",
+  textMuted: "rgba(255,255,255,0.45)",
+  textFaint: "rgba(255,255,255,0.25)",
+  emerald: "#6EE7B7",
+  cyan: "#67E8F9",
+  blue: "#60A5FA",
+  amber: "#FBB040",
+  rose: "#FB7185",
+  violet: "#A78BFA",
 };
 
-const AHA_MOMENTS = [
-  {
-    icon: "⚡",
-    color: "#E8622A",
-    headline: "65% of your spending happens in 3 days",
-    sub: "Days 1–3 after salary credit are your most financially vulnerable window.",
-    badge: "Salary Trap",
-  },
-  {
-    icon: "📉",
-    color: "#ef4444",
-    headline: "Financial stress begins at Day 18",
-    sub: "Your transaction patterns show anxiety-driven purchases every month after Day 18.",
-    badge: "Stress Pattern",
-  },
-  {
-    icon: "🎭",
-    color: "#D4A017",
-    headline: "Food delivery spikes on stressful Tuesdays",
-    sub: "You spend 3.2× more on delivery during high-workload weeks. Emotional eating confirmed.",
-    badge: "Behavioral Link",
-  },
-  {
-    icon: "🕳️",
-    color: "#9B6FD8",
-    headline: "₹3,200/month disappearing silently",
-    sub: "Hidden leakage across 6 recurring charges you haven't actively used in 90+ days.",
-    badge: "Ghost Spend",
-  },
-];
+// ─── Utility hooks ────────────────────────────────────────────────────────────
+function useCountUp(target, duration = 1800, start = false) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    let startTime = null;
+    const step = (ts) => {
+      if (!startTime) startTime = ts;
+      const p = Math.min((ts - startTime) / duration, 1);
+      setValue(Math.floor(p * target));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [start, target, duration]);
+  return value;
+}
 
-const FUTURE_IMPACT = [
-  { habit: "₹2,800/mo food delivery", impact: "₹8.7L opportunity", years: 10, color: "#E8622A" },
-  { habit: "Cut impulse by 20%", impact: "Emergency fund 14mo earlier", years: 0, color: "#2EB87A" },
-  { habit: "₹1,840/mo subscriptions", impact: "₹5.2L in 8 years", years: 8, color: "#9B6FD8" },
-  { habit: "₹620/mo late-night UPI", impact: "₹1.9L in 5 years", years: 5, color: "#D4A017" },
-];
-
-const EVOLUTION_MONTHS = [
-  { m: "Sep", stress: 82, savings: 12, stability: 38 },
-  { m: "Oct", stress: 78, savings: 15, stability: 42 },
-  { m: "Nov", stress: 71, savings: 19, stability: 51 },
-  { m: "Dec", stress: 68, savings: 22, stability: 58 },
-  { m: "Jan", stress: 62, savings: 26, stability: 64 },
-  { m: "Feb", stress: 54, savings: 31, stability: 71 },
-];
-
-const CHAT_PROMPTS = [
-  "Why did I overspend this month?",
-  "What habit hurts me most?",
-  "Am I financially improving?",
-  "How stable am I right now?",
-  "What changed from last month?",
-];
-
-// ─── HOOKS ───────────────────────────────────────────────────────────────────
-function useIntersection(threshold = 0.1) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+function useInView(threshold = 0.15) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
   useEffect(() => {
     const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      ([e]) => { if (e.isIntersecting) setInView(true); },
       { threshold }
     );
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
   }, [threshold]);
-  return [ref, visible] as const;
+  return { ref, inView };
 }
 
-function useCounter(target: number, visible: boolean, duration = 1600) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!visible) return;
-    let start = 0;
-    const step = target / (duration / 16);
-    const timer = setInterval(() => {
-      start += step;
-      if (start >= target) { setCount(target); clearInterval(timer); }
-      else setCount(Math.floor(start));
-    }, 16);
-    return () => clearInterval(timer);
-  }, [visible, target, duration]);
-  return count;
-}
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-const fmtCr = (n: number) => {
-  if (n >= 10000000) return `₹${(n / 10000000).toFixed(1)}Cr`;
-  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
-  if (n >= 1000) return `₹${(n / 1000).toFixed(0)}K`;
-  return `₹${n}`;
-};
-
-// ─── COMPONENTS ──────────────────────────────────────────────────────────────
-
-function Reveal({ children, delay = 0, className = "" }: RevealProps) {
-  const [ref, visible] = useIntersection();
+// ─── Base components ──────────────────────────────────────────────────────────
+function GlassCard({ children, style = {}, onClick }) {
   return (
     <div
-      ref={ref}
-      className={className}
+      onClick={onClick}
       style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(28px)",
-        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
+        borderRadius: 20,
+        border: `1px solid ${T.border}`,
+        background: T.surface,
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        ...style,
       }}
     >
       {children}
@@ -148,1158 +75,743 @@ function Reveal({ children, delay = 0, className = "" }: RevealProps) {
   );
 }
 
-function StatCounter({ value, prefix = "", suffix = "", label }: {
-  value: number; prefix?: string; suffix?: string; label: string;
-}) {
-  const [ref, visible] = useIntersection();
-  const count = useCounter(value, visible);
-  return (
-    <div ref={ref} className="text-center">
-      <div style={{ fontSize: "clamp(2.2rem,4vw,3.2rem)", fontFamily: "var(--font-serif)", color: "#fff", lineHeight: 1 }}>
-        {prefix}<span style={{ color: "var(--accent)" }}>{fmtCr(count)}</span>{suffix}
-      </div>
-      <p style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginTop: "0.5rem", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600 }}>
-        {label}
-      </p>
-    </div>
-  );
-}
-
-// ─── HERO BEHAVIORAL SCORE ────────────────────────────────────────────────────
-function HeroScore({ score = 42 }: { score?: number }) {
-  const r = 54;
-  const circ = 2 * Math.PI * r;
-  const [drawn, setDrawn] = useState(0);
-  const ref = useRef<SVGCircleElement>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      let s = 0;
-      const step = setInterval(() => {
-        s += 1;
-        setDrawn(s);
-        if (s >= score) clearInterval(step);
-      }, 18);
-      return () => clearInterval(step);
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [score]);
-
-  const dash = (drawn / 100) * circ;
-  const color = score < 40 ? "#ef4444" : score < 65 ? "#D4A017" : "#2EB87A";
-  const label = score < 40 ? "At Risk" : score < 65 ? "Needs Work" : "Healthy";
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-      <svg width="130" height="130" viewBox="0 0 130 130">
-        <circle cx="65" cy="65" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
-        <circle
-          ref={ref}
-          cx="65" cy="65" r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth="6"
-          strokeDasharray={`${dash} ${circ}`}
-          strokeLinecap="round"
-          style={{ transform: "rotate(-90deg)", transformOrigin: "65px 65px", transition: "stroke-dasharray 0.03s linear" }}
-        />
-        <text x="65" y="58" textAnchor="middle" fill="white" fontSize="28" fontWeight="700" fontFamily="Cormorant Garamond, serif">{drawn}</text>
-        <text x="65" y="74" textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="11" fontFamily="Instrument Sans, sans-serif">/100</text>
-      </svg>
-      <div style={{
-        fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase",
-        color, background: `${color}15`, border: `1px solid ${color}30`,
-        padding: "0.3rem 0.85rem", borderRadius: "100px"
-      }}>
-        {label} · Financial Health
-      </div>
-    </div>
-  );
-}
-
-// ─── SALARY CYCLE VISUALIZATION ──────────────────────────────────────────────
-function SalaryCycleViz() {
-  const [ref, visible] = useIntersection();
-  const [activeDay, setActiveDay] = useState<number | null>(null);
-  const maxSpend = Math.max(...SALARY_CYCLE.map(d => d.spend));
-
-  return (
-    <div ref={ref} style={{
-      background: "var(--bg-card)",
-      border: "1px solid var(--border-subtle)",
-      borderRadius: "var(--radius-xl)",
-      padding: "2rem",
-      overflow: "hidden",
-      position: "relative"
-    }}>
-      <div style={{
-        position: "absolute", inset: 0,
-        background: "linear-gradient(135deg, rgba(232,98,42,0.03) 0%, transparent 50%)",
-        pointerEvents: "none"
-      }} />
-
-      <div style={{ marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
-          <span style={{
-            background: "rgba(232,98,42,0.1)", border: "1px solid rgba(232,98,42,0.2)",
-            color: "var(--accent)", fontSize: "0.62rem", fontWeight: 700,
-            letterSpacing: "0.12em", textTransform: "uppercase",
-            padding: "0.25rem 0.7rem", borderRadius: "100px"
-          }}>Signature Feature</span>
-        </div>
-        <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: "#fff", fontWeight: 400, marginBottom: "0.25rem" }}>
-          Your Salary Cycle
-        </h3>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.82rem" }}>
-          The 30-day behavioral rhythm your bank never shows you.
-        </p>
-      </div>
-
-      {/* Timeline Bars */}
-      <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", height: "120px", marginBottom: "0.75rem" }}>
-        {SALARY_CYCLE.map((day, i) => {
-          const h = (day.spend / maxSpend) * 100;
-          const color = ZONE_COLORS[day.zone];
-          const isActive = activeDay === i;
-          return (
-            <div
-              key={i}
-              style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", cursor: "pointer" }}
-              onMouseEnter={() => setActiveDay(i)}
-              onMouseLeave={() => setActiveDay(null)}
-            >
-              <div
-                style={{
-                  height: visible ? `${h}%` : "2px",
-                  background: isActive
-                    ? color
-                    : `linear-gradient(to top, ${color}90, ${color}40)`,
-                  borderRadius: "4px 4px 2px 2px",
-                  transition: `height ${0.4 + i * 0.04}s cubic-bezier(0.16,1,0.3,1), background 0.2s`,
-                  minHeight: "4px",
-                  boxShadow: isActive ? `0 0 12px ${color}60` : "none",
-                  transform: isActive ? "scaleY(1.05)" : "scaleY(1)",
-                  transformOrigin: "bottom",
-                }}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Day Labels */}
-      <div style={{ display: "flex", gap: "6px" }}>
-        {SALARY_CYCLE.map((day, i) => (
-          <div key={i} style={{ flex: 1, textAlign: "center" }}>
-            <p style={{ fontSize: "0.55rem", color: activeDay === i ? "var(--accent)" : "var(--text-ghost)", fontWeight: 600, transition: "color 0.2s" }}>
-              {day.day}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Active Tooltip */}
-      {activeDay !== null && (
-        <div style={{
-          marginTop: "1rem",
-          background: "rgba(255,255,255,0.04)",
-          border: `1px solid ${ZONE_COLORS[SALARY_CYCLE[activeDay].zone]}30`,
-          borderRadius: "var(--radius-md)",
-          padding: "0.75rem 1rem",
-          display: "flex", alignItems: "center", gap: "1rem"
-        }}>
-          <div style={{
-            width: "8px", height: "8px", borderRadius: "50%",
-            background: ZONE_COLORS[SALARY_CYCLE[activeDay].zone],
-            flexShrink: 0
-          }} />
-          <div>
-            <p style={{ fontSize: "0.7rem", color: ZONE_COLORS[SALARY_CYCLE[activeDay].zone], fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-              {SALARY_CYCLE[activeDay].label}
-            </p>
-            <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "0.1rem" }}>
-              {SALARY_CYCLE[activeDay].note} · <strong style={{ color: "#fff" }}>{fmtCr(SALARY_CYCLE[activeDay].spend)}</strong> spent
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Zone Legend */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "1rem" }}>
-        {[
-          { label: "Salary Day", color: "#2EB87A" },
-          { label: "Splurge Zone", color: "#E8622A" },
-          { label: "Stress Zone", color: "#D4A017" },
-          { label: "Critical", color: "#ef4444" },
-          { label: "Safe Zone", color: "#3A9FD8" },
-        ].map((z, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: z.color }} />
-            <span style={{ fontSize: "0.6rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>{z.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── AHA MOMENT CARDS ─────────────────────────────────────────────────────────
-function AhaMomentCard({ moment, delay }: { moment: typeof AHA_MOMENTS[0]; delay: number }) {
-  const [ref, visible] = useIntersection();
+function FadeIn({ children, delay = 0, style = {} }) {
+  const { ref, inView } = useInView();
   return (
     <div
       ref={ref}
       style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-lg)",
-        padding: "1.5rem",
-        position: "relative",
-        overflow: "hidden",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0) scale(1)" : "translateY(20px) scale(0.98)",
-        transition: `all 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
-        cursor: "default",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = `${moment.color}30`;
-        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px) scale(1)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border-subtle)";
-        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0) scale(1)";
+        opacity: inView ? 1 : 0,
+        transform: inView ? "translateY(0)" : "translateY(28px)",
+        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
+        ...style,
       }}
     >
-      <div style={{
-        position: "absolute", inset: 0,
-        background: `radial-gradient(circle at top left, ${moment.color}08 0%, transparent 60%)`,
-        pointerEvents: "none"
-      }} />
-      <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", position: "relative", zIndex: 1 }}>
-        <div style={{
-          width: "42px", height: "42px", borderRadius: "12px", flexShrink: 0,
-          background: `${moment.color}12`, border: `1px solid ${moment.color}20`,
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem"
-        }}>
-          {moment.icon}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-            <span style={{
-              fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
-              color: moment.color, background: `${moment.color}12`, border: `1px solid ${moment.color}20`,
-              padding: "0.2rem 0.6rem", borderRadius: "100px"
-            }}>{moment.badge}</span>
-          </div>
-          <h4 style={{ fontSize: "1rem", fontWeight: 600, color: "#fff", lineHeight: 1.35, marginBottom: "0.5rem" }}>
-            {moment.headline}
-          </h4>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.6 }}>{moment.sub}</p>
-        </div>
-      </div>
+      {children}
     </div>
   );
 }
 
-// ─── FUTURE IMPACT ENGINE ─────────────────────────────────────────────────────
-function FutureImpact({ item, delay }: { item: typeof FUTURE_IMPACT[0]; delay: number }) {
-  const [ref, visible] = useIntersection();
-  return (
-    <div
-      ref={ref}
-      style={{
-        background: "var(--bg-card)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-lg)",
-        padding: "1.5rem",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateX(0)" : "translateX(-16px)",
-        transition: `all 0.6s cubic-bezier(0.16,1,0.3,1) ${delay}ms`,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
-        <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: item.color, flexShrink: 0 }} />
-        <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 500 }}>{item.habit}</p>
-      </div>
-      <p style={{
-        fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: item.color,
-        fontWeight: 500, lineHeight: 1.2, marginBottom: "0.35rem"
-      }}>
-        → {item.impact}
-      </p>
-      {item.years > 0 && (
-        <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", letterSpacing: "0.08em" }}>
-          over {item.years} years at 12% p.a.
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ─── AI COMPANION PREVIEW ─────────────────────────────────────────────────────
-function AICompanion() {
-  const [activePrompt, setActivePrompt] = useState<string | null>(null);
-  const [typing, setTyping] = useState(false);
-  const [reply, setReply] = useState<string | null>(null);
-
-  const REPLIES: Record<string, string> = {
-    "Why did I overspend this month?": "Your overspend happened in 3 concentrated windows. Days 1–3 (post-salary), Day 17–18 (stress trigger), and Fri/Sat evenings. Together these account for 78% of your discretionary excess.",
-    "What habit hurts me most?": "Your biggest wealth killer is the post-salary relaxation effect. You spend ₹14,200 on average in the first 3 days — 4× your daily average. This alone costs you ₹1.2L per year in opportunity cost.",
-    "Am I financially improving?": "Yes — your financial stress score dropped from 82 to 54 over 6 months. Savings rate is up 19pts. But your emergency fund is still below 2 months. Focus there.",
-    "How stable am I right now?": "Stability score: 64/100. Your balance trajectory shows healthy mid-month behavior. Primary risk: Day 18–25 vulnerability window still active. EMI-to-income ratio is safe at 12%.",
-    "What changed from last month?": "vs February: Food delivery -₹1,200 ✓, Subscription leakage identified -₹620 ✓, but impulse UPI went up by ₹840. Net improvement: ₹980 better. Trend: positive.",
-  };
-
-  const handlePrompt = (p: string) => {
-    setActivePrompt(p);
-    setTyping(true);
-    setReply(null);
-    setTimeout(() => {
-      setTyping(false);
-      setReply(REPLIES[p] ?? "Analysing your financial patterns...");
-    }, 1400);
-  };
-
+function Tag({ children }) {
   return (
     <div style={{
-      background: "var(--bg-card)",
-      border: "1px solid var(--border-subtle)",
-      borderRadius: "var(--radius-xl)",
-      overflow: "hidden"
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "6px 14px", borderRadius: 999,
+      border: `1px solid ${T.border}`, background: T.surface,
+      color: T.textMuted, fontSize: 11, letterSpacing: "0.1em",
+      textTransform: "uppercase", fontWeight: 500, marginBottom: 16,
     }}>
-      {/* Header */}
+      {children}
+    </div>
+  );
+}
+
+function SectionHeading({ tag, title, sub }) {
+  return (
+    <div style={{ textAlign: "center", marginBottom: 64 }}>
+      <Tag>{tag}</Tag>
+      <h2 style={{
+        fontFamily: "'Bricolage Grotesque', 'DM Sans', sans-serif",
+        fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800,
+        color: T.text, marginBottom: 16, lineHeight: 1.05,
+      }}>{title}</h2>
+      {sub && <p style={{ color: T.textMuted, maxWidth: 480, margin: "0 auto", lineHeight: 1.7, fontSize: 16 }}>{sub}</p>}
+    </div>
+  );
+}
+
+// ─── Navbar ──────────────────────────────────────────────────────────────────
+function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
+  useEffect(() => {
+    const h = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", h);
+    return () => window.removeEventListener("scroll", h);
+  }, []);
+
+  return (
+    <nav style={{
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+      padding: scrolled ? "12px 0" : "20px 0",
+      background: scrolled ? "rgba(8,11,20,0.85)" : "transparent",
+      backdropFilter: scrolled ? "blur(24px)" : "none",
+      WebkitBackdropFilter: scrolled ? "blur(24px)" : "none",
+      borderBottom: scrolled ? `1px solid ${T.border}` : "1px solid transparent",
+      transition: "all 0.4s ease",
+    }}>
       <div style={{
-        background: "rgba(0,0,0,0.3)",
-        borderBottom: "1px solid var(--border-subtle)",
-        padding: "1.25rem 1.5rem",
-        display: "flex", alignItems: "center", gap: "0.75rem"
+        maxWidth: 1100, margin: "0 auto", padding: "0 24px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <div style={{ position: "relative" }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: "36px", height: "36px", borderRadius: "10px",
-            background: "linear-gradient(135deg, #E8622A, #D4A017)",
+            width: 34, height: 34, borderRadius: 10,
+            background: `linear-gradient(135deg, ${T.emerald}, ${T.blue})`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontFamily: "var(--font-serif)", fontSize: "1.1rem", fontWeight: 600, color: "#000"
-          }}>ML</div>
-          <div style={{
-            position: "absolute", bottom: "-1px", right: "-1px",
-            width: "10px", height: "10px", background: "#2EB87A",
-            borderRadius: "50%", border: "2px solid var(--bg-card)"
-          }} />
-        </div>
-        <div>
-          <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>MoneyLens AI</p>
-          <p style={{ fontSize: "0.68rem", color: "#2EB87A" }}>Context-aware · Behaviorally intelligent</p>
-        </div>
-      </div>
-
-      {/* Chat area */}
-      <div style={{ padding: "1.25rem 1.5rem", minHeight: "180px", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {!activePrompt && (
-          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", fontStyle: "italic", lineHeight: 1.6 }}>
-            Ask me anything about your financial behavior. I know your patterns, cycles, and triggers intimately.
-          </p>
-        )}
-        {activePrompt && (
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <div style={{
-              background: "var(--accent)", color: "#fff",
-              padding: "0.6rem 1rem", borderRadius: "16px 16px 4px 16px",
-              fontSize: "0.82rem", maxWidth: "85%", lineHeight: 1.5,
-              animation: "fadeUp 0.3s ease"
-            }}>
-              {activePrompt}
-            </div>
-          </div>
-        )}
-        {typing && (
-          <div style={{ display: "flex", gap: "5px", padding: "0.75rem 1rem", background: "#1a1a1e", borderRadius: "16px 16px 16px 4px", width: "fit-content" }}>
-            {[0,1,2].map(i => (
-              <div key={i} style={{ width: "6px", height: "6px", background: "var(--accent)", borderRadius: "50%", animation: `chatBounce 1s ${i*0.2}s infinite` }} />
-            ))}
-          </div>
-        )}
-        {reply && (
-          <div style={{
-            background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)",
-            padding: "0.8rem 1rem", borderRadius: "16px 16px 16px 4px",
-            fontSize: "0.82rem", color: "var(--text-secondary)", lineHeight: 1.65,
-            maxWidth: "88%", animation: "fadeUp 0.35s ease"
           }}>
-            {reply}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3" fill="white" />
+              <circle cx="8" cy="8" r="6.5" stroke="white" strokeWidth="1" strokeOpacity="0.4" />
+            </svg>
           </div>
-        )}
+          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 18, fontWeight: 600, color: T.text, letterSpacing: "-0.02em" }}>
+            MoneyLens
+          </span>
+        </div>
+
+        {/* Nav links */}
+        <div style={{ display: "flex", alignItems: "center", gap: 32 }} className="nav-links">
+          {["Features", "How it Works", "Privacy"].map(item => (
+            <a key={item} href="#" style={{
+              color: T.textMuted, fontSize: 14, textDecoration: "none",
+              transition: "color 0.2s",
+            }}
+              onMouseEnter={e => e.target.style.color = T.text}
+              onMouseLeave={e => e.target.style.color = T.textMuted}
+            >{item}</a>
+          ))}
+        </div>
+
+        {/* Auth buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+          onClick={()=> router.push('/login')}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "8px 16px", borderRadius: 12,
+            background: "transparent", border: `1px solid ${T.border}`,
+            color: T.textMuted, fontSize: 13, fontWeight: 500, cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHover; e.currentTarget.style.color = T.text; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMuted; }}
+          >
+            <LogIn size={14} />
+            Log in
+          </button>
+          <button 
+          onClick={()=> router.push('/signup')}
+          
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "8px 16px", borderRadius: 12,
+            background: `linear-gradient(135deg, ${T.emerald}, ${T.cyan})`,
+            border: "none", color: "#080B14", fontSize: 13, fontWeight: 700,
+            cursor: "pointer", transition: "all 0.2s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = "0.88"; e.currentTarget.style.transform = "scale(1.02)"; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "scale(1)"; }}
+          >
+            <UserPlus size={14} />
+            Sign up free
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+// ─── Hero ─────────────────────────────────────────────────────────────────────
+function InsightChip({ icon: Icon, color, label, value, sub, delay }) {
+  const [vis, setVis] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVis(true), delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+  return (
+    <GlassCard style={{
+      padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 12,
+      minWidth: 210, opacity: vis ? 1 : 0,
+      transform: vis ? "translateY(0)" : "translateY(16px)",
+      transition: "opacity 0.6s ease, transform 0.6s ease",
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+        background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <Icon size={15} color={color} />
+      </div>
+      <div>
+        <div style={{ fontSize: 10, color: T.textFaint, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{value}</div>
+        <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{sub}</div>
+      </div>
+    </GlassCard>
+  );
+}
+
+function HeroSection() {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setLoaded(true), 80); return () => clearTimeout(t); }, []);
+
+  const anim = (delay) => ({
+    opacity: loaded ? 1 : 0,
+    transform: loaded ? "translateY(0)" : "translateY(20px)",
+    transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
+  });
+
+  return (
+    <section style={{
+      minHeight: "100vh", display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: "96px 24px 64px", position: "relative", overflow: "hidden",
+    }}>
+      {/* Background glow */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+        <div style={{
+          position: "absolute", top: "25%", left: "50%", transform: "translate(-50%,-50%)",
+          width: 800, height: 800, borderRadius: "50%",
+          background: `radial-gradient(circle, ${T.emerald}0F 0%, ${T.blue}08 50%, transparent 75%)`,
+        }} />
+        <div style={{
+          position: "absolute", inset: 0,
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px)`,
+          backgroundSize: "64px 64px",
+        }} />
       </div>
 
-      {/* Prompt chips */}
-      <div style={{ padding: "0 1.5rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-        <p style={{ fontSize: "0.62rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, marginBottom: "0.25rem" }}>
-          Try asking:
+      <div style={{ maxWidth: 960, margin: "0 auto", textAlign: "center", position: "relative" }}>
+        {/* Badge */}
+        <div style={{
+          ...anim(0),
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "6px 14px", borderRadius: 999,
+          border: `1px solid ${T.emerald}30`, background: `${T.emerald}0C`,
+          color: T.emerald, fontSize: 12, fontWeight: 500, marginBottom: 28,
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: T.emerald, animation: "pulse 2s infinite" }} />
+          AI-Powered Financial Intelligence · Now in Beta
+        </div>
+
+        <h1 style={{
+          ...anim(150),
+          fontFamily: "'Bricolage Grotesque', 'DM Sans', sans-serif",
+          fontSize: "clamp(52px, 9vw, 96px)", fontWeight: 900,
+          color: T.text, lineHeight: 0.95, letterSpacing: "-0.03em", marginBottom: 24,
+        }}>
+          Your money,<br />
+          <span style={{ background: `linear-gradient(90deg, ${T.emerald}, ${T.cyan}, ${T.blue})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            decoded.
+          </span>
+        </h1>
+
+        <p style={{
+          ...anim(250),
+          fontSize: 18, color: T.textMuted, maxWidth: 560, margin: "0 auto 40px",
+          lineHeight: 1.7,
+        }}>
+          MoneyLens goes beyond tracking — it understands your spending behavior,
+          detects hidden patterns, and tells you exactly what your financial habits mean for your future.
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-          {CHAT_PROMPTS.map((p, i) => (
-            <button
-              key={i}
-              onClick={() => handlePrompt(p)}
-              style={{
-                background: activePrompt === p ? "rgba(232,98,42,0.1)" : "transparent",
-                border: `1px solid ${activePrompt === p ? "rgba(232,98,42,0.3)" : "var(--border-default)"}`,
-                color: activePrompt === p ? "var(--accent)" : "var(--text-muted)",
-                fontSize: "0.72rem", padding: "0.35rem 0.8rem",
-                borderRadius: "100px", cursor: "pointer",
-                transition: "all 0.2s ease", fontFamily: "var(--font-sans)",
+
+        <div style={{ ...anim(350), display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 56 }}>
+          <button style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "14px 28px", borderRadius: 16,
+            background: `linear-gradient(135deg, ${T.emerald}, ${T.cyan})`,
+            border: "none", color: "#080B14", fontWeight: 700, fontSize: 15,
+            cursor: "pointer", transition: "all 0.2s",
+            boxShadow: `0 0 28px ${T.emerald}30`,
+          }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.opacity = "0.9"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.opacity = "1"; }}
+          >
+            <Upload size={16} />
+            Upload Statement
+          </button>
+          <button style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "14px 28px", borderRadius: 16,
+            background: T.surface, border: `1px solid ${T.border}`,
+            color: T.textMuted, fontWeight: 500, fontSize: 15,
+            cursor: "pointer", transition: "all 0.2s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.color = T.text; e.currentTarget.style.borderColor = T.borderHover; }}
+            onMouseLeave={e => { e.currentTarget.style.color = T.textMuted; e.currentTarget.style.borderColor = T.border; }}
+          >
+            See How It Works <ArrowRight size={14} />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
+          <InsightChip icon={Brain} color={T.violet} label="Behavior Insight" value="Weekend spend 2.4× higher" sub="vs your weekday average" delay={500} />
+          <InsightChip icon={Target} color={T.emerald} label="Affordability" value="iPhone in ~9 weeks" sub="at current savings rate" delay={650} />
+          <InsightChip icon={AlertTriangle} color={T.amber} label="Hidden Drain" value="₹2,340 in micro-payments" sub="draining flexibility quietly" delay={800} />
+          <InsightChip icon={TrendingUp} color={T.rose} label="Projection" value="Savings gap in 4 months" sub="if shopping trend continues" delay={950} />
+        </div>
+      </div>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
+    </section>
+  );
+}
+
+// ─── Why Section ──────────────────────────────────────────────────────────────
+function WhySection() {
+  const traditional = ["Shows your transactions", "Categorizes expenses", "Creates budget buckets", "Tells you what you spent", "Generates colorful pie charts"];
+  const moneylens = ["Explains WHY you spend that way", "Detects hidden financial patterns", "Predicts future consequences", "Answers real affordability questions", "Builds smarter financial habits"];
+
+  return (
+    <section style={{ padding: "112px 24px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <FadeIn><SectionHeading tag="Why MoneyLens" title="Not another expense tracker." sub="Traditional apps see your numbers. MoneyLens understands your behavior." /></FadeIn>
+        <FadeIn delay={100}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <GlassCard style={{ padding: 28 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.textFaint }} />
+                <span style={{ color: T.textFaint, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" }}>Traditional Apps</span>
+              </div>
+              {traditional.map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", color: T.textFaint, fontSize: 14 }}>
+                  <XCircle size={14} color="rgba(255,255,255,0.2)" />
+                  {item}
+                </div>
+              ))}
+            </GlassCard>
+            <GlassCard style={{ padding: 28, border: `1px solid ${T.emerald}25`, background: `linear-gradient(135deg, ${T.emerald}0A 0%, transparent 60%)` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.emerald, boxShadow: `0 0 8px ${T.emerald}` }} />
+                <span style={{ color: T.emerald, fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" }}>MoneyLens</span>
+              </div>
+              {moneylens.map((item, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", color: "rgba(255,255,255,0.8)", fontSize: 14 }}>
+                  <CheckCircle size={14} color={T.emerald} />
+                  {item}
+                </div>
+              ))}
+            </GlassCard>
+          </div>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
+
+// ─── Behavior Section ─────────────────────────────────────────────────────────
+const insightCards = [
+  { emoji: "🌙", tag: "Timing Pattern", color: T.violet, insight: "Your weekend spending is 2.4× higher than weekdays.", detail: "Saturdays and Sundays account for 54% of your discretionary spend, mostly after 7 PM." },
+  { emoji: "💧", tag: "Silent Drain", color: T.amber, insight: "Small recurring UPI payments are quietly draining your flexibility.", detail: "47 micro-transactions under ₹200 totalled ₹4,890 last month — invisible, but significant." },
+  { emoji: "📅", tag: "Salary Trigger", color: T.blue, insight: "Your spending spikes 68% in the first 5 days after salary credit.", detail: "A common behavioral pattern — MoneyLens can help you build a buffer window." },
+  { emoji: "🛵", tag: "Goal Impact", color: T.rose, insight: "Food delivery is delaying your iPhone goal by 6 weeks.", detail: "₹3,200/month in delivery fees vs. a one-time redirect could fund it by August." },
+];
+
+function BehaviorSection() {
+  return (
+    <section style={{ padding: "112px 24px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <FadeIn><SectionHeading tag="Behavioral Intelligence" title={<>AI that reads between<br />the transactions.</>} sub="MoneyLens identifies behavioral patterns you didn't know existed — specific, personal, actionable." /></FadeIn>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {insightCards.map((item, i) => (
+            <FadeIn key={i} delay={i * 80}>
+              <div style={{
+                borderRadius: 20, padding: 24,
+                border: `1px solid ${item.color}20`,
+                background: `linear-gradient(135deg, ${item.color}10 0%, transparent 60%)`,
+                transition: "transform 0.3s",
+                cursor: "default",
               }}
-            >
-              {p}
-            </button>
+                onMouseEnter={e => e.currentTarget.style.transform = "scale(1.015)"}
+                onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: 24 }}>{item.emoji}</span>
+                  <span style={{ fontSize: 11, color: T.textFaint, textTransform: "uppercase", letterSpacing: "0.1em" }}>{item.tag}</span>
+                </div>
+                <p style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 8, lineHeight: 1.4 }}>{item.insight}</p>
+                <p style={{ fontSize: 13, color: T.textMuted, lineHeight: 1.6 }}>{item.detail}</p>
+              </div>
+            </FadeIn>
           ))}
         </div>
       </div>
+    </section>
+  );
+}
+
+// ─── Affordability Section ────────────────────────────────────────────────────
+const affordQ = [
+  { q: "Can I buy an iPhone?", icon: "📱", answer: "Yes — in approximately 9 weeks", tradeoff: "If you pause food delivery and reduce weekend dining by 40%, you get there 3 weeks faster.", confidence: 78, label: "Affordability Score" },
+  { q: "Can I afford this EMI?", icon: "🏦", answer: "Caution — it's tight", tradeoff: "₹4,200/month EMI would push your savings rate below 8%. Recommend waiting 6 weeks.", confidence: 41, label: "Risk Score" },
+  { q: "Can I travel to Goa?", icon: "✈️", answer: "Yes — comfortably in 11 weeks", tradeoff: "At ₹2,000/month dedicated savings, your Goa fund hits ₹22,000 by late November.", confidence: 85, label: "Feasibility Score" },
+];
+
+function ConfBar({ value, color }) {
+  const { ref, inView } = useInView();
+  return (
+    <div ref={ref} style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+      <div style={{
+        height: "100%", borderRadius: 3,
+        background: `linear-gradient(90deg, ${color[0]}, ${color[1]})`,
+        width: inView ? `${value}%` : "0%",
+        transition: "width 1s ease",
+      }} />
     </div>
   );
 }
 
-// ─── FINANCIAL EVOLUTION CHART ────────────────────────────────────────────────
-function EvolutionChart() {
-  return (
-    <div style={{
-      background: "var(--bg-card)",
-      border: "1px solid var(--border-subtle)",
-      borderRadius: "var(--radius-xl)",
-      padding: "2rem",
-      overflow: "hidden", position: "relative"
-    }}>
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: "#fff", fontWeight: 400, marginBottom: "0.3rem" }}>
-          Your Financial Evolution
-        </h3>
-        <p style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-          6 months of measurable progress — stress falling, stability rising.
-        </p>
-      </div>
-     <div className="h-56 w-full min-w-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={EVOLUTION_MONTHS}>
-            <defs>
-              <linearGradient id="stressG" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="stabG" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2EB87A" stopOpacity={0.4} />
-                <stop offset="100%" stopColor="#2EB87A" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="savG" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#D4A017" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#D4A017" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1e" />
-            <XAxis dataKey="m" stroke="#2a2a2e" tick={{ fontSize: 11, fill: "#52525b" }} />
-            <YAxis stroke="#2a2a2e" tick={{ fontSize: 10, fill: "#52525b" }} domain={[0, 100]} tickFormatter={v => `${v}`} />
-            <Tooltip
-              contentStyle={{ background: "#111113", border: "1px solid #222226", borderRadius: 10, fontSize: 12 }}
-              formatter={(v: number, name: string) => [
-                `${v}`,
-                name === "stress" ? "Stress Index" : name === "stability" ? "Stability Score" : "Savings Rate"
-              ]}
-            />
-            <Area type="monotone" dataKey="stress"    stroke="#ef4444" fill="url(#stressG)" strokeWidth={1.5} dot={false} />
-            <Area type="monotone" dataKey="stability" stroke="#2EB87A" fill="url(#stabG)"   strokeWidth={2}   dot={false} />
-            <Area type="monotone" dataKey="savings"   stroke="#D4A017" fill="url(#savG)"    strokeWidth={1.5} dot={false} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{ display: "flex", gap: "1.5rem", marginTop: "1rem", flexWrap: "wrap" }}>
-        {[
-          { label: "Stress Index", color: "#ef4444", trend: "↓ 34%" },
-          { label: "Stability",    color: "#2EB87A", trend: "↑ 87%" },
-          { label: "Savings Rate", color: "#D4A017", trend: "↑ 19pts" },
-        ].map((l, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: l.color }} />
-            <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{l.label}</span>
-            <span style={{ fontSize: "0.72rem", fontWeight: 700, color: l.color }}>{l.trend}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── SECTION TAG ──────────────────────────────────────────────────────────────
-function SectionTag({ label }: { label: string }) {
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: "0.4rem",
-      background: "rgba(232,98,42,0.08)", border: "1px solid rgba(232,98,42,0.18)",
-      color: "var(--accent)", fontSize: "0.62rem", fontWeight: 700,
-      letterSpacing: "0.12em", textTransform: "uppercase",
-      padding: "0.3rem 0.9rem", borderRadius: "100px",
-    }}>
-      <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#2EB87A", animation: "pulseDot 2s infinite" }} />
-      {label}
-    </span>
-  );
-}
-
-// ─── MAIN LANDING PAGE ────────────────────────────────────────────────────────
-export default function MoneyLensLanding() {
-  const router = useRouter();
-  const [scrolled, setScrolled] = useState(false);
-  const [heroVisible, setHeroVisible] = useState(false);
-
-  useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-    if (token) router.replace("/dashboard");
-    const t = setTimeout(() => setHeroVisible(true), 100);
-    return () => clearTimeout(t);
-  }, [router]);
-
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 60);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-
-  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+function AffordabilitySection() {
+  const [active, setActive] = useState(0);
+  const item = affordQ[active];
+  const scoreColor = item.confidence > 70 ? [T.emerald, T.cyan] : item.confidence > 50 ? [T.amber, "#F59E0B"] : [T.rose, "#FB7185"];
+  const scoreText = item.confidence > 70 ? T.emerald : item.confidence > 50 ? T.amber : T.rose;
 
   return (
-    <div style={{ background: "var(--bg-deep)", color: "var(--text-primary)", overflowX: "hidden", fontFamily: "var(--font-sans)" }}>
-      <div className="noise-overlay" />
-
-      {/* ── NAVIGATION ── */}
-      <nav style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-        transition: "all 0.3s ease",
-        background: scrolled ? "rgba(10,10,12,0.85)" : "transparent",
-        backdropFilter: scrolled ? "blur(24px)" : "none",
-        borderBottom: scrolled ? "1px solid var(--border-subtle)" : "1px solid transparent",
-      }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "1.1rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <div style={{ position: "relative" }}>
-              <div style={{
-                width: "34px", height: "34px", borderRadius: "10px",
-                background: "linear-gradient(135deg, #E8622A, #D4A017)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: "var(--font-serif)", fontSize: "1.2rem", color: "#000", fontWeight: 600
-              }}>M</div>
-              <div style={{
-                position: "absolute", top: "-2px", right: "-2px",
-                width: "8px", height: "8px", background: "#2EB87A", borderRadius: "50%",
-                animation: "pulseDot 2s infinite"
-              }} />
+    <section style={{ padding: "112px 24px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <FadeIn><SectionHeading tag="Can I Afford This?" title={<>Real answers to<br />real money questions.</>} sub="Not a budget calculator. A financial thinking partner that gives you honest, context-aware answers." /></FadeIn>
+        <FadeIn delay={100}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 3fr", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {affordQ.map((q, i) => (
+                <button key={i} onClick={() => setActive(i)} style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "14px 16px", borderRadius: 14, textAlign: "left",
+                  border: `1px solid ${active === i ? T.borderHover : T.border}`,
+                  background: active === i ? "rgba(255,255,255,0.08)" : T.surface,
+                  color: active === i ? T.text : T.textMuted,
+                  fontSize: 14, fontWeight: 500, cursor: "pointer", transition: "all 0.2s",
+                }}>
+                  <span style={{ fontSize: 20 }}>{q.icon}</span>
+                  {q.q}
+                </button>
+              ))}
             </div>
-            <span style={{ fontWeight: 800, fontSize: "1rem", letterSpacing: "-0.02em", color: "#fff" }}>MoneyLens</span>
-          </div>
-
-          {/* Nav */}
-          <div style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
-            {[["features","Features"],["cycle","Salary Cycle"],["intelligence","Intelligence"],["pricing","Pricing"]].map(([id, label]) => (
-              <button key={id} onClick={() => scrollTo(id)} style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: "var(--text-muted)", fontSize: "0.82rem", fontWeight: 600,
-                fontFamily: "var(--font-sans)", transition: "color 0.2s"
-              }}
-                onMouseEnter={e => (e.currentTarget.style.color = "var(--text-primary)")}
-                onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
-              >{label}</button>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <button onClick={() => router.push("/login")} style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "var(--text-muted)", fontSize: "0.82rem", fontWeight: 600,
-              fontFamily: "var(--font-sans)"
-            }}>Log in</button>
-            <button onClick={() => scrollTo("upload")} style={{
-              background: "var(--accent)", color: "#fff", border: "none",
-              padding: "0.6rem 1.4rem", borderRadius: "100px", cursor: "pointer",
-              fontWeight: 700, fontSize: "0.8rem", fontFamily: "var(--font-sans)",
-              transition: "all 0.2s", boxShadow: "0 4px 16px rgba(232,98,42,0.3)"
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#f0733c")}
-              onMouseLeave={e => (e.currentTarget.style.background = "var(--accent)")}
-            >
-              Try free →
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* ── HERO ── */}
-      <section className="hero-grid-bg" style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", paddingTop: "6rem", paddingBottom: "5rem", overflow: "hidden" }}>
-        {/* Orbs */}
-        <div className="orb-orange" style={{ position: "absolute", width: "700px", height: "700px", top: "20%", left: "10%", pointerEvents: "none" }} />
-        <div className="orb-gold" style={{ position: "absolute", width: "500px", height: "500px", bottom: "0%", right: "10%", pointerEvents: "none" }} />
-
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 2rem", width: "100%" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: "4rem", alignItems: "center" }}>
-
-            {/* LEFT */}
-            <div style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? "translateY(0)" : "translateY(20px)", transition: "all 0.8s cubic-bezier(0.16,1,0.3,1)" }}>
-              <div style={{ marginBottom: "1.5rem" }}>
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: "0.5rem",
-                  background: "rgba(232,98,42,0.08)", border: "1px solid rgba(232,98,42,0.18)",
-                  color: "var(--accent)", fontSize: "0.65rem", fontWeight: 700,
-                  letterSpacing: "0.12em", textTransform: "uppercase",
-                  padding: "0.3rem 0.9rem", borderRadius: "100px"
-                }}>
-                  <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#2EB87A", animation: "pulseDot 2s infinite" }} />
-                  AI Behavioral Financial Intelligence
-                </span>
+            <GlassCard style={{ padding: 28 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                <span style={{ fontSize: 24 }}>{item.icon}</span>
+                <span style={{ color: T.textMuted, fontSize: 13 }}>{item.q}</span>
               </div>
-
-              {/* Big Insight Hero */}
-              <div style={{
-                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: "var(--radius-lg)", padding: "1.2rem 1.4rem", marginBottom: "1.5rem",
-                borderLeft: "3px solid var(--accent)"
-              }}>
-                <p style={{ fontSize: "0.65rem", color: "var(--accent)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "0.4rem" }}>
-                  AI detected this about you
-                </p>
-                <p style={{ fontSize: "1.05rem", color: "#fff", fontWeight: 500, lineHeight: 1.55 }}>
-                  "65% of your discretionary spending happens within <strong style={{ color: "var(--accent)" }}>3 days of salary credit</strong>. Your financial stress begins at Day 18 every month."
-                </p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: scoreText, marginBottom: 14 }}>{item.answer}</p>
+              <p style={{ fontSize: 14, color: T.textMuted, lineHeight: 1.7, marginBottom: 24 }}>{item.tradeoff}</p>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: T.textFaint }}>{item.label}</span>
+                  <span style={{ fontSize: 12, color: T.textFaint }}>{item.confidence}%</span>
+                </div>
+                <ConfBar value={item.confidence} color={scoreColor} />
               </div>
+            </GlassCard>
+          </div>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
 
-              <h1 style={{
-                fontFamily: "var(--font-serif)", color: "#fff",
-                fontSize: "clamp(3.5rem,6.5vw,5.5rem)", fontWeight: 400, lineHeight: 1.05,
-                marginBottom: "1.25rem"
-              }}>
-                Your money has<br />
-                a <span className="text-shimmer">behavioral</span><br />
-                pattern.
-              </h1>
+// ─── Projection Section ───────────────────────────────────────────────────────
+function ProjectionSection() {
+  const { ref, inView } = useInView();
+  const months = ["Jun", "Jul", "Aug", "Sep", "Oct", "Nov"];
+  const savP = [12, 14, 13, 15, 11, 9];
+  const shopP = [8, 9, 11, 13, 15, 17];
+  const W = 480, H = 180, pX = 30, pY = 10;
+  const tX = (i) => pX + (i / (months.length - 1)) * (W - pX * 2);
+  const tY = (v) => H - pY - (v / 20) * (H - pY * 2);
+  const pathD = (d) => d.map((v, i) => `${i === 0 ? "M" : "L"}${tX(i)},${tY(v)}`).join(" ");
 
-              <p style={{ color: "var(--text-secondary)", fontSize: "1rem", lineHeight: 1.7, maxWidth: "420px", marginBottom: "2rem" }}>
-                MoneyLens is not a budgeting app. It's an AI-powered behavioral intelligence system that understands <em>why</em> your money disappears.
-              </p>
-
-              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "2rem" }}>
-                <button onClick={() => scrollTo("upload")} style={{
-                  background: "var(--accent)", color: "#fff", border: "none",
-                  padding: "0.9rem 2rem", borderRadius: "100px", cursor: "pointer",
-                  fontWeight: 700, fontSize: "0.9rem", fontFamily: "var(--font-sans)",
-                  boxShadow: "0 8px 24px rgba(232,98,42,0.35)",
-                  transition: "all 0.2s"
-                }}>
-                  Analyse my behavior →
-                </button>
-                <button onClick={() => scrollTo("cycle")} style={{
-                  background: "transparent", color: "var(--text-secondary)",
-                  border: "1px solid var(--border-default)",
-                  padding: "0.9rem 2rem", borderRadius: "100px", cursor: "pointer",
-                  fontWeight: 600, fontSize: "0.9rem", fontFamily: "var(--font-sans)",
-                  transition: "all 0.2s"
-                }}>
-                  See how it works
-                </button>
+  return (
+    <section style={{ padding: "112px 24px", position: "relative" }} ref={ref}>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <FadeIn><SectionHeading tag="Future Projections" title={<>See where you're headed,<br />before you get there.</>} /></FadeIn>
+        <FadeIn delay={100}>
+          <GlassCard style={{ padding: 40 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 48 }}>
+              <div style={{ flex: "1 1 280px" }}>
+                <div style={{ fontSize: 11, color: T.textFaint, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>6-Month Trajectory</div>
+                <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 480 }}>
+                  <defs>
+                    <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={T.emerald} stopOpacity="0.25" />
+                      <stop offset="100%" stopColor={T.emerald} stopOpacity="0" />
+                    </linearGradient>
+                    <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={T.rose} stopOpacity="0.2" />
+                      <stop offset="100%" stopColor={T.rose} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {[5, 10, 15, 20].map(v => <line key={v} x1={pX} x2={W - pX} y1={tY(v)} y2={tY(v)} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />)}
+                  <path d={`${pathD(savP)} L${tX(5)},${H - pY} L${tX(0)},${H - pY} Z`} fill="url(#sg)" />
+                  <path d={`${pathD(shopP)} L${tX(5)},${H - pY} L${tX(0)},${H - pY} Z`} fill="url(#rg)" />
+                  <path d={pathD(savP)} fill="none" stroke={T.emerald} strokeWidth="2"
+                    style={{ strokeDasharray: inView ? "none" : 500, strokeDashoffset: inView ? 0 : 500, transition: "stroke-dashoffset 1.5s ease" }} />
+                  <path d={pathD(shopP)} fill="none" stroke={T.rose} strokeWidth="2" strokeDasharray="4 3" />
+                  <circle cx={tX(3)} cy={tY(14)} r="4" fill={T.amber} opacity="0.9" />
+                  <text x={tX(3) + 8} y={tY(14) + 4} fill={T.amber} fontSize="9" opacity="0.9">Crossover point</text>
+                  {months.map((m, i) => <text key={m} x={tX(i)} y={H - 1} textAnchor="middle" fill="rgba(255,255,255,0.2)" fontSize="9">{m}</text>)}
+                </svg>
+                <div style={{ display: "flex", gap: 24, marginTop: 12 }}>
+                  {[{ color: T.emerald, label: "Savings growth", dash: false }, { color: T.rose, label: "Shopping trend", dash: true }].map((l, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: T.textFaint }}>
+                      <div style={{ width: 24, height: 2, background: l.color, opacity: 0.8, borderTop: l.dash ? `2px dashed ${l.color}` : "none", height: l.dash ? 0 : 2 }} />
+                      {l.label}
+                    </div>
+                  ))}
+                </div>
               </div>
-
-              <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
-                {["No bank login needed", "256-bit encrypted", "All Indian banks"].map((t, i) => (
-                  <span key={i} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                    <span style={{ color: "#2EB87A", fontSize: "0.55rem" }}>●</span> {t}
-                  </span>
+              <div style={{ flex: "0 0 240px", display: "flex", flexDirection: "column", gap: 16 }}>
+                {[
+                  { color: T.rose, text: "If current shopping trend continues, it will exceed savings growth by October." },
+                  { color: T.emerald, text: "Cutting discretionary spend by ₹4k/month accelerates your MBA goal by 3 months." },
+                  { color: T.amber, text: "Salary trigger spending is your #1 momentum risk right now." },
+                ].map((item, i) => (
+                  <div key={i} style={{ display: "flex", gap: 12 }}>
+                    <div style={{ width: 3, flexShrink: 0, borderRadius: 2, background: item.color }} />
+                    <p style={{ fontSize: 13, color: item.color, lineHeight: 1.6, opacity: 0.85 }}>{item.text}</p>
+                  </div>
                 ))}
               </div>
             </div>
+          </GlassCard>
+        </FadeIn>
+      </div>
+    </section>
+  );
+}
 
-            {/* RIGHT */}
-            <div style={{ position: "relative", opacity: heroVisible ? 1 : 0, transition: "all 1s cubic-bezier(0.16,1,0.3,1) 200ms", transform: heroVisible ? "translateY(0)" : "translateY(24px)" }}>
-              {/* Floating AI Alert */}
-              <div className="ml-float" style={{
-                position: "absolute", top: "-20px", left: "-20px", zIndex: 20,
-                background: "var(--bg-card)", border: "1px solid var(--border-default)",
-                borderRadius: "var(--radius-md)", padding: "0.75rem 1rem",
-                display: "flex", alignItems: "center", gap: "0.6rem",
-                boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
-              }}>
-                <div style={{ width: "32px", height: "32px", borderRadius: "9px", background: "rgba(232,98,42,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>⚡</div>
-                <div>
-                  <p style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginBottom: "0.15rem" }}>Aha Moment Detected</p>
-                  <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#fff" }}>Post-salary splurge: ₹18,400 in 3 days</p>
-                </div>
-              </div>
+// ─── Goals Section ────────────────────────────────────────────────────────────
+const goals = [
+  { icon: "🏖️", name: "Goa Trip", target: 22000, saved: 14500, weeks: 11, note: "On track — keep your weekend spend steady.", ok: true },
+  { icon: "💻", name: "MacBook", target: 90000, saved: 28000, weeks: 31, note: "Long runway — consider a ₹5k/month boost.", ok: true },
+  { icon: "💍", name: "Jewelry for Mom", target: 15000, saved: 12800, weeks: 3, note: "Almost there — just one more month.", ok: true },
+  { icon: "🎓", name: "MBA Fund", target: 300000, saved: 48000, weeks: 104, note: "Ambitious. Reduce dining out to cut 8 weeks.", ok: false },
+];
 
-              {/* Main Dashboard Card */}
-              <div style={{
-                background: "var(--bg-card)", border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: "var(--radius-xl)", overflow: "hidden",
-                boxShadow: "0 40px 80px rgba(0,0,0,0.6)"
-              }}>
-                {/* Header */}
-                <div style={{
-                  background: "rgba(0,0,0,0.4)", padding: "1.5rem",
-                  borderBottom: "1px solid var(--border-subtle)",
-                  display: "flex", justifyContent: "space-between", alignItems: "flex-end"
-                }}>
-                  <div>
-                    <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "0.25rem" }}>
-                      April 2026 · Behavioral Profile
-                    </p>
-                    <p style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "#fff" }}>
-                      Stress Index: <span style={{ color: "#D4A017" }}>68/100</span>
-                    </p>
-                  </div>
-                  <HeroScore score={42} />
-                </div>
-
-                {/* Behavioral indicators */}
-                <div style={{ padding: "1.25rem 1.5rem" }}>
-                  <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
-                    Behavioral signals
-                  </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                    {[
-                      { label: "Post-Salary Relaxation", pct: 82, color: "#E8622A" },
-                      { label: "Impulse Spend Cycles",   pct: 67, color: "#D4A017" },
-                      { label: "Stress-Triggered Spend", pct: 54, color: "#ef4444" },
-                      { label: "Savings Discipline",     pct: 38, color: "#3A9FD8" },
-                      { label: "Financial Stability",    pct: 44, color: "#2EB87A" },
-                    ].map((item, i) => (
-                      <div key={i}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.3rem" }}>
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{item.label}</span>
-                          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: item.color }}>{item.pct}%</span>
-                        </div>
-                        <div style={{ height: "4px", background: "#1a1a1e", borderRadius: "4px" }}>
-                          <div style={{
-                            height: "100%", borderRadius: "4px",
-                            width: `${item.pct}%`, background: item.color,
-                            transition: "width 1s ease"
-                          }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Streak badge */}
-              <div className="ml-float-b" style={{
-                position: "absolute", bottom: "-16px", right: "-16px", zIndex: 20,
-                background: "linear-gradient(135deg, #D4A017, #E8622A)",
-                borderRadius: "var(--radius-md)", padding: "0.85rem", textAlign: "center",
-                boxShadow: "0 16px 40px rgba(232,98,42,0.35)"
-              }}>
-                <div style={{ fontSize: "1.4rem", lineHeight: 1 }}>🔥</div>
-                <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.8rem", color: "#000", lineHeight: 1 }}>14</div>
-                <div style={{ fontSize: "0.55rem", fontWeight: 800, color: "rgba(0,0,0,0.7)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Day Streak</div>
-              </div>
-            </div>
+function GoalCard({ g }) {
+  const { ref, inView } = useInView(0.2);
+  const pct = Math.round((g.saved / g.target) * 100);
+  const accent = g.ok ? T.emerald : T.amber;
+  return (
+    <GlassCard ref={ref} style={{ padding: 22 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 22 }}>{g.icon}</span>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{g.name}</div>
+            <div style={{ fontSize: 12, color: T.textFaint }}>~{g.weeks} weeks away</div>
           </div>
         </div>
-      </section>
+        <span style={{
+          fontSize: 11, padding: "4px 10px", borderRadius: 8,
+          color: g.ok ? T.emerald : T.amber,
+          background: g.ok ? `${T.emerald}12` : `${T.amber}12`,
+        }}>{g.ok ? "On track" : "Review"}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: T.textFaint, marginBottom: 6 }}>
+        <span>₹{g.saved.toLocaleString("en-IN")} saved</span>
+        <span>{pct}% · ₹{g.target.toLocaleString("en-IN")}</span>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.07)", overflow: "hidden", marginBottom: 10 }}>
+        <div style={{
+          height: "100%", borderRadius: 3,
+          background: `linear-gradient(90deg, ${accent}, ${g.ok ? T.cyan : "#F59E0B"})`,
+          width: inView ? `${pct}%` : "0%",
+          transition: "width 1s ease",
+        }} />
+      </div>
+      <p style={{ fontSize: 12, color: T.textFaint, lineHeight: 1.5 }}>{g.note}</p>
+    </GlassCard>
+  );
+}
 
-      {/* ── BANK MARQUEE ── */}
-      <div style={{ borderTop: "1px solid var(--border-subtle)", borderBottom: "1px solid var(--border-subtle)", padding: "0.9rem 0", background: "var(--bg-surface)", overflow: "hidden" }}>
-        <div className="ml-marquee" style={{ display: "flex", whiteSpace: "nowrap" }}>
-          {Array(2).fill(null).map((_, ri) => (
-            <div key={ri} style={{ display: "flex", gap: "3rem", alignItems: "center", marginRight: "3rem" }}>
-              {["HDFC Bank","SBI","ICICI Bank","Axis Bank","Kotak","Yes Bank","IndusInd","IDFC First","Federal Bank","BOB","PNB","Canara Bank"].map((b, i) => (
-                <span key={i} style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-ghost)" }}>
-                  {b}<span style={{ color: "var(--accent)", margin: "0 1rem" }}>·</span>
-                </span>
-              ))}
-            </div>
+function GoalsSection() {
+  return (
+    <section style={{ padding: "112px 24px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <FadeIn><SectionHeading tag="Goals & Savings" title="Goals with honest timelines." sub="MoneyLens won't tell you what you want to hear. It tells you what's actually achievable — and how to get there." /></FadeIn>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {goals.map((g, i) => (
+            <FadeIn key={i} delay={i * 80}><GoalCard g={g} /></FadeIn>
           ))}
         </div>
       </div>
+    </section>
+  );
+}
 
-      {/* ── STATS ── */}
-      <section style={{ padding: "5rem 2rem", borderBottom: "1px solid var(--border-subtle)" }}>
-        <div style={{ maxWidth: "900px", margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "3rem" }}>
-          <StatCounter value={4200000} prefix="₹" suffix="+" label="Savings identified" />
-          <StatCounter value={18000} suffix="+" label="Statements analysed" />
-          <StatCounter value={94} suffix="%" label="Saved in month 1" />
-          <StatCounter value={6200} prefix="₹" suffix="/mo" label="Avg. leaks found" />
-        </div>
-      </section>
+// ─── How It Works ─────────────────────────────────────────────────────────────
+const steps = [
+  { num: "01", Icon: FileText, title: "Upload your statement", desc: "Drop your bank or UPI statement. PDF, CSV — we handle it securely." },
+  { num: "02", Icon: Brain, title: "AI analyzes your behavior", desc: "MoneyLens scans patterns, habits, risks, and trajectories — not just totals." },
+  { num: "03", Icon: Sparkles, title: "Get financial clarity", desc: "Personalized insights, affordability answers, and an honest picture of where you're headed." },
+];
 
-      {/* ── SALARY CYCLE SECTION ── */}
-      <section id="cycle" style={{ padding: "6rem 2rem", background: "var(--bg-surface)" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-              <SectionTag label="Signature Feature" />
-              <h2 style={{
-                fontFamily: "var(--font-serif)", color: "#fff",
-                fontSize: "clamp(2.5rem,5vw,4rem)", fontWeight: 400, marginTop: "1rem", marginBottom: "0.75rem"
-              }}>
-                The 30-day rhythm<br />
-                <span className="text-shimmer">you never knew existed.</span>
-              </h2>
-              <p style={{ color: "var(--text-muted)", maxWidth: "480px", margin: "0 auto", lineHeight: 1.7 }}>
-                Every salaried person has a predictable financial cycle. MoneyLens maps yours and shows you exactly where it breaks down.
-              </p>
-            </div>
-          </Reveal>
-          <Reveal delay={100}>
-            <SalaryCycleViz />
-          </Reveal>
-
-          {/* Below cycle: key stats */}
-          <Reveal delay={150}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginTop: "1.5rem" }}>
-              {[
-                { stat: "3 days", label: "when 65% of your discretionary spend happens", color: "#E8622A" },
-                { stat: "Day 18", label: "when financial stress consistently begins each month", color: "#D4A017" },
-                { stat: "₹4.2K",  label: "average monthly impulse leak from the stress window", color: "#ef4444" },
-              ].map((s, i) => (
-                <div key={i} style={{
-                  background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
-                  borderRadius: "var(--radius-lg)", padding: "1.25rem 1.5rem"
-                }}>
-                  <p style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: s.color, marginBottom: "0.4rem" }}>{s.stat}</p>
-                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.5 }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── AHA MOMENTS ── */}
-      <section id="intelligence" style={{ padding: "6rem 2rem" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-              <SectionTag label="Hidden Pattern Intelligence" />
-              <h2 style={{
-                fontFamily: "var(--font-serif)", color: "#fff",
-                fontSize: "clamp(2.5rem,5vw,4rem)", fontWeight: 400, marginTop: "1rem", marginBottom: "0.75rem"
-              }}>
-                Moments that make you<br />
-                <span className="text-shimmer">see yourself clearly.</span>
-              </h2>
-              <p style={{ color: "var(--text-muted)", maxWidth: "460px", margin: "0 auto", lineHeight: 1.7 }}>
-                Not generic analytics. Psychologically accurate insights about your specific behavioral patterns.
-              </p>
-            </div>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
-            {AHA_MOMENTS.map((m, i) => (
-              <AhaMomentCard key={i} moment={m} delay={i * 80} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FUTURE IMPACT ENGINE ── */}
-      <section style={{ padding: "6rem 2rem", background: "var(--bg-surface)", borderTop: "1px solid var(--border-subtle)", borderBottom: "1px solid var(--border-subtle)" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-              <SectionTag label="Future Impact Engine" />
-              <h2 style={{
-                fontFamily: "var(--font-serif)", color: "#fff",
-                fontSize: "clamp(2.5rem,5vw,4rem)", fontWeight: 400, marginTop: "1rem", marginBottom: "0.75rem"
-              }}>
-                Today's habits.<br />
-                <span className="text-shimmer">Tomorrow's wealth.</span>
-              </h2>
-              <p style={{ color: "var(--text-muted)", maxWidth: "420px", margin: "0 auto", lineHeight: 1.7 }}>
-                Not guilt-tripping. Empowering. See exactly what small changes compounded over time.
-              </p>
-            </div>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem", maxWidth: "800px", margin: "0 auto" }}>
-            {FUTURE_IMPACT.map((item, i) => (
-              <FutureImpact key={i} item={item} delay={i * 80} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── AI COMPANION + EVOLUTION ── */}
-      <section style={{ padding: "6rem 2rem" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-              <SectionTag label="AI Financial Companion" />
-              <h2 style={{
-                fontFamily: "var(--font-serif)", color: "#fff",
-                fontSize: "clamp(2.5rem,5vw,4rem)", fontWeight: 400, marginTop: "1rem"
-              }}>
-                Not a chatbot.<br />
-                <span className="text-shimmer">A financial mirror.</span>
-              </h2>
-            </div>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-            <Reveal delay={50}><AICompanion /></Reveal>
-            <Reveal delay={150}><EvolutionChart /></Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURES GRID ── */}
-      <section id="features" style={{ padding: "6rem 2rem", background: "var(--bg-surface)", borderTop: "1px solid var(--border-subtle)", borderBottom: "1px solid var(--border-subtle)" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-              <SectionTag label="Core Features" />
-              <h2 style={{
-                fontFamily: "var(--font-serif)", color: "#fff",
-                fontSize: "clamp(2.5rem,5vw,4rem)", fontWeight: 400, marginTop: "1rem"
-              }}>
-                Built for behavioral<br />
-                <span className="text-shimmer">self-awareness.</span>
-              </h2>
-            </div>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", background: "var(--border-subtle)", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
-            {[
-              { icon: "🔍", title: "Deep Behavioral Analysis",   desc: "Not just category charts. AI-mapped behavioral patterns, impulse cycles, stress windows, and post-salary drain analysis.", color: "#E8622A", badge: "Core" },
-              { icon: "🧠", title: "Psychological Spend Mapping", desc: "Identify emotional triggers, social spending dependency, burnout patterns, and behavioral loops unique to you.", color: "#9B6FD8", badge: "Unique" },
-              { icon: "📅", title: "Salary Cycle Intelligence",   desc: "Our signature feature. See your 30-day financial rhythm, vulnerable windows, and stability zones in vivid detail.", color: "#D4A017", badge: "Signature" },
-              { icon: "🌱", title: "Compound Impact Engine",      desc: "Show what ₹2,800/mo on delivery becomes in 10 years. Real numbers, real benchmarks. Empowering, never guilt-based.", color: "#2EB87A", badge: "Impact" },
-              { icon: "🤖", title: "Context-Aware AI Chat",       desc: "Ask anything. Get answers grounded in your actual transaction history, behavioral patterns, and monthly trends.", color: "#3A9FD8", badge: "AI" },
-              { icon: "📈", title: "Financial Evolution Tracker", desc: "Monthly stress reduction. Rising savings discipline. Improving stability. Watch yourself grow financially.", color: "#E8622A", badge: "Growth" },
-            ].map((f, i) => (
-              <Reveal key={i} delay={i * 50}>
+function HowItWorksSection() {
+  return (
+    <section style={{ padding: "112px 24px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <FadeIn><SectionHeading tag="How It Works" title="Three steps to financial clarity." /></FadeIn>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, position: "relative" }}>
+          {steps.map((s, i) => (
+            <FadeIn key={i} delay={i * 120}>
+              <div style={{ textAlign: "center" }}>
                 <div style={{
-                  background: "var(--bg-deep)", padding: "2rem",
-                  transition: "background 0.2s"
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-card)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "var(--bg-deep)")}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
-                    <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: `${f.color}12`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>{f.icon}</div>
-                    <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: f.color, background: `${f.color}10`, border: `1px solid ${f.color}25`, padding: "0.2rem 0.6rem", borderRadius: "100px" }}>
-                      {f.badge}
-                    </span>
-                  </div>
-                  <h3 style={{ fontWeight: 700, fontSize: "0.95rem", color: "#e4e4e7", marginBottom: "0.6rem" }}>{f.title}</h3>
-                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.65 }}>{f.desc}</p>
+                  width: 64, height: 64, borderRadius: 18, margin: "0 auto 20px",
+                  background: T.surface, border: `1px solid ${T.border}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <s.Icon size={24} color={T.textMuted} />
                 </div>
-              </Reveal>
-            ))}
-          </div>
+                <div style={{ fontSize: 11, color: T.textFaint, fontFamily: "monospace", marginBottom: 4 }}>{s.num}</div>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 8 }}>{s.title}</h3>
+                <p style={{ fontSize: 13, color: T.textMuted, lineHeight: 1.65 }}>{s.desc}</p>
+              </div>
+            </FadeIn>
+          ))}
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      {/* ── UPLOAD ── */}
-      <section id="upload" style={{ padding: "6rem 2rem" }}>
-        <div style={{ maxWidth: "640px", margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-              <SectionTag label="Get Started" />
-              <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(2rem,4vw,3rem)", color: "#fff", fontWeight: 400, marginTop: "1rem", marginBottom: "0.5rem" }}>
-                Upload your statement
-              </h2>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.88rem" }}>Free for your first 3 analyses. No card required.</p>
-            </div>
-          </Reveal>
-          <Reveal delay={100}>
-            <div style={{
-              border: "1.5px dashed rgba(255,255,255,0.1)", borderRadius: "var(--radius-xl)",
-              padding: "4rem 2rem", textAlign: "center", cursor: "pointer",
-              background: "rgba(232,98,42,0.02)", transition: "all 0.3s"
+// ─── Trust Section ────────────────────────────────────────────────────────────
+const trustPoints = [
+  { Icon: Lock, title: "End-to-end encrypted", desc: "Your statement is encrypted in transit and at rest. We never store raw data." },
+  { Icon: XCircle, title: "No bank credentials", desc: "You upload a PDF — never your login, password, or OTP." },
+  { Icon: Trash2, title: "Auto-deleted after analysis", desc: "Statement files are purged within 24 hours of processing." },
+  { Icon: Shield, title: "Privacy-first architecture", desc: "No selling, no sharing, no advertising use of your financial data. Ever." },
+];
+
+function TrustSection() {
+  return (
+    <section style={{ padding: "112px 24px", borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, background: "rgba(255,255,255,0.012)" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <FadeIn><SectionHeading tag="Trust & Privacy" title="Your data is yours." sub="We understand that uploading financial data requires deep trust. We designed MoneyLens to earn it." /></FadeIn>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+          {trustPoints.map((t, i) => (
+            <FadeIn key={i} delay={i * 80}>
+              <GlassCard style={{ padding: 22, textAlign: "center" }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12, margin: "0 auto 14px",
+                  background: `${T.emerald}12`, display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <t.Icon size={20} color={T.emerald} />
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 8 }}>{t.title}</div>
+                <div style={{ fontSize: 12, color: T.textFaint, lineHeight: 1.6 }}>{t.desc}</div>
+              </GlassCard>
+            </FadeIn>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Final CTA ────────────────────────────────────────────────────────────────
+function FinalCTA() {
+  return (
+    <section style={{ padding: "128px 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+      <div style={{
+        position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+        width: 700, height: 700, borderRadius: "50%",
+        background: `radial-gradient(circle, ${T.emerald}0A 0%, transparent 70%)`,
+        pointerEvents: "none",
+      }} />
+      <FadeIn>
+        <div style={{ maxWidth: 720, margin: "0 auto", position: "relative" }}>
+          <h2 style={{
+            fontFamily: "'Bricolage Grotesque', 'DM Sans', sans-serif",
+            fontSize: "clamp(40px, 7vw, 72px)", fontWeight: 900,
+            color: T.text, lineHeight: 1.05, marginBottom: 20,
+          }}>
+            Your financial life<br />
+            <span style={{ background: `linear-gradient(90deg, ${T.emerald}, ${T.cyan}, ${T.blue})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              already tells a story.
+            </span>
+          </h2>
+          <p style={{ fontSize: 17, color: T.textMuted, marginBottom: 40, lineHeight: 1.7, maxWidth: 520, margin: "0 auto 40px" }}>
+            MoneyLens helps you read it — before your money habits write a future you didn't choose.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <button style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "16px 32px", borderRadius: 18,
+              background: `linear-gradient(135deg, ${T.emerald}, ${T.cyan})`,
+              border: "none", color: "#080B14", fontWeight: 800, fontSize: 16,
+              cursor: "pointer", transition: "all 0.2s",
+              boxShadow: `0 0 40px ${T.emerald}25`,
             }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(232,98,42,0.35)";
-                (e.currentTarget as HTMLDivElement).style.background = "rgba(232,98,42,0.04)";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.1)";
-                (e.currentTarget as HTMLDivElement).style.background = "rgba(232,98,42,0.02)";
-              }}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
             >
-              <div style={{
-                width: "68px", height: "68px", borderRadius: "18px",
-                background: "rgba(232,98,42,0.08)", border: "1px solid rgba(232,98,42,0.15)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "1.8rem", margin: "0 auto 1.5rem"
-              }}>📄</div>
-              <h3 style={{ fontWeight: 700, fontSize: "1.1rem", color: "#fff", marginBottom: "0.5rem" }}>
-                Drop your bank statement here
-              </h3>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginBottom: "1.75rem" }}>
-                PDF, CSV, or Excel · Max 10MB · Encrypted instantly
-              </p>
-              <button style={{
-                background: "var(--accent)", color: "#fff", border: "none",
-                padding: "0.85rem 2.25rem", borderRadius: "100px", cursor: "pointer",
-                fontWeight: 700, fontSize: "0.88rem", fontFamily: "var(--font-sans)",
-                boxShadow: "0 8px 24px rgba(232,98,42,0.3)"
-              }}>
-                Choose file to upload
-              </button>
-              <p style={{ fontSize: "0.68rem", color: "var(--text-ghost)", marginTop: "1.5rem" }}>
-                HDFC · SBI · ICICI · Axis · Kotak · Yes Bank · IndusInd + more
-              </p>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding: "6rem 2rem", background: "var(--bg-surface)", borderTop: "1px solid var(--border-subtle)" }}>
-        <div style={{ maxWidth: "960px", margin: "0 auto" }}>
-          <Reveal>
-            <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
-              <SectionTag label="Pricing" />
-              <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(2.5rem,5vw,4rem)", color: "#fff", fontWeight: 400, marginTop: "1rem" }}>
-                Simple. Fair. Worth it.
-              </h2>
-            </div>
-          </Reveal>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
-            {[
-              { name: "Starter", price: "Free", period: "forever", desc: "Try it risk-free", highlight: false,
-                features: ["3 statement analyses", "Behavioral overview", "Salary cycle viz", "Basic insight cards"], cta: "Start free" },
-              { name: "Pro", price: "₹199", period: "/month", desc: "For the serious saver", highlight: true,
-                features: ["Unlimited analyses", "AI Behavioral Coach", "Full cycle intelligence", "Future impact engine", "Evolution tracking", "Priority support"], cta: "Start Pro" },
-              { name: "Family", price: "₹349", period: "/month", desc: "For the whole family", highlight: false,
-                features: ["5 member accounts", "Everything in Pro", "Family behavioral map", "Shared financial goals", "Monthly family report"], cta: "Get Family" },
-            ].map((plan, i) => (
-              <Reveal key={i} delay={i * 80}>
-                <div style={{
-                  borderRadius: "var(--radius-xl)", padding: "2rem",
-                  display: "flex", flexDirection: "column",
-                  background: plan.highlight ? "var(--accent)" : "var(--bg-card)",
-                  border: `1px solid ${plan.highlight ? "transparent" : "var(--border-subtle)"}`,
-                  boxShadow: plan.highlight ? "0 24px 60px rgba(232,98,42,0.3)" : "none",
-                  position: "relative", overflow: "hidden"
-                }}>
-                  {plan.highlight && (
-                    <div style={{
-                      position: "absolute", top: "1rem", right: "1rem",
-                      fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase",
-                      letterSpacing: "0.1em", background: "rgba(0,0,0,0.2)",
-                      color: "#fff", padding: "0.25rem 0.75rem", borderRadius: "100px"
-                    }}>Most popular</div>
-                  )}
-                  <div style={{ marginBottom: "1.5rem" }}>
-                    <p style={{ fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: plan.highlight ? "rgba(255,255,255,0.65)" : "var(--text-muted)", marginBottom: "0.4rem" }}>{plan.name}</p>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "0.25rem" }}>
-                      <span style={{ fontFamily: "var(--font-serif)", fontSize: "2.5rem", color: "#fff" }}>{plan.price}</span>
-                      <span style={{ fontSize: "0.8rem", color: plan.highlight ? "rgba(255,255,255,0.6)" : "var(--text-muted)" }}>{plan.period}</span>
-                    </div>
-                    <p style={{ fontSize: "0.82rem", color: plan.highlight ? "rgba(255,255,255,0.75)" : "var(--text-muted)", marginTop: "0.25rem" }}>{plan.desc}</p>
-                  </div>
-                  <ul style={{ flex: 1, marginBottom: "1.5rem", listStyle: "none", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                    {plan.features.map((f, j) => (
-                      <li key={j} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", color: plan.highlight ? "rgba(255,255,255,0.9)" : "var(--text-secondary)" }}>
-                        <span style={{ fontWeight: 700, color: plan.highlight ? "#fff" : "#2EB87A" }}>✓</span> {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <button style={{
-                    width: "100%", padding: "0.9rem", borderRadius: "100px",
-                    border: "none", cursor: "pointer", fontWeight: 700,
-                    fontSize: "0.85rem", fontFamily: "var(--font-sans)",
-                    background: plan.highlight ? "#000" : "var(--accent)",
-                    color: "#fff", transition: "all 0.2s"
-                  }}>
-                    {plan.cta}
-                  </button>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FINAL CTA ── */}
-      <section style={{ padding: "8rem 2rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div className="orb-orange" style={{ position: "absolute", width: "600px", height: "600px", top: "50%", left: "50%", transform: "translate(-50%,-50%)", pointerEvents: "none" }} />
-        <div className="ml-spin" style={{ position: "absolute", top: "50%", left: "50%", width: "600px", height: "600px", marginLeft: "-300px", marginTop: "-300px", border: "1px solid rgba(232,98,42,0.07)", borderRadius: "50%", pointerEvents: "none" }} />
-        <div className="ml-spin-rev" style={{ position: "absolute", top: "50%", left: "50%", width: "400px", height: "400px", marginLeft: "-200px", marginTop: "-200px", border: "1px solid rgba(212,160,23,0.05)", borderRadius: "50%", pointerEvents: "none" }} />
-        <div style={{ maxWidth: "600px", margin: "0 auto", position: "relative", zIndex: 10 }}>
-          <Reveal>
-            <div style={{ fontSize: "2.5rem", marginBottom: "1.5rem" }}>🔍</div>
-            <h2 style={{ fontFamily: "var(--font-serif)", color: "#fff", fontSize: "clamp(3rem,6vw,5rem)", fontWeight: 400, lineHeight: 1.05, marginBottom: "1.25rem" }}>
-              Your money has<br />a story.<br /><span className="text-shimmer">Read it.</span>
-            </h2>
-            <p style={{ color: "var(--text-muted)", fontSize: "1rem", marginBottom: "2.5rem", lineHeight: 1.7 }}>
-              Upload your first statement free. No credit card. No jargon. Just deep, personal financial clarity.
-            </p>
-            <button onClick={() => scrollTo("upload")} style={{
-              background: "var(--accent)", color: "#fff", border: "none",
-              padding: "1rem 2.5rem", borderRadius: "100px", cursor: "pointer",
-              fontWeight: 700, fontSize: "1rem", fontFamily: "var(--font-sans)",
-              boxShadow: "0 12px 32px rgba(232,98,42,0.4)", transition: "all 0.2s"
-            }}>
-              Understand my financial behavior →
+              <Upload size={17} />
+              Upload Statement — It's Free
             </button>
-            <p style={{ fontSize: "0.7rem", color: "var(--text-ghost)", marginTop: "1.25rem" }}>
-              3 free analyses · No card required · Results in 30 seconds
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer style={{ borderTop: "1px solid var(--border-subtle)", background: "var(--bg-deep)", padding: "4rem 2rem 2rem" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: "3rem", marginBottom: "3rem" }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem" }}>
-                <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg,#E8622A,#D4A017)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-serif)", fontSize: "1rem", color: "#000" }}>M</div>
-                <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "#fff" }}>MoneyLens</span>
-              </div>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.65 }}>
-                AI-powered behavioral financial intelligence for smarter, wealthier Indians.
-              </p>
-            </div>
-            {[
-              { title: "Product", links: ["Features","Salary Cycle","AI Companion","Pricing","Changelog"] },
-              { title: "Company", links: ["About","Blog","Careers","Press"] },
-              { title: "Legal",   links: ["Privacy Policy","Terms of Use","Security","DPDP Act"] },
-            ].map((col, i) => (
-              <div key={i}>
-                <p style={{ fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)", marginBottom: "1rem" }}>{col.title}</p>
-                <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                  {col.links.map((l, j) => (
-                    <li key={j}>
-                      <a href="#" style={{ fontSize: "0.8rem", color: "var(--text-muted)", textDecoration: "none", transition: "color 0.2s" }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "var(--text-primary)")}
-                        onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}>{l}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <button style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "16px 32px", borderRadius: 18,
+              background: T.surface, border: `1px solid ${T.border}`,
+              color: T.textMuted, fontWeight: 500, fontSize: 16,
+              cursor: "pointer", transition: "all 0.2s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = T.text; e.currentTarget.style.borderColor = T.borderHover; }}
+              onMouseLeave={e => { e.currentTarget.style.color = T.textMuted; e.currentTarget.style.borderColor = T.border; }}
+            >
+              See a sample report <ChevronRight size={15} />
+            </button>
           </div>
-          <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <p style={{ fontSize: "0.7rem", color: "var(--text-ghost)" }}>© 2026 MoneyLens Technologies Pvt. Ltd. · Made with ❤️ in India</p>
-            <div style={{ display: "flex", gap: "1.5rem" }}>
-              {["Twitter","LinkedIn","Instagram"].map((s, i) => (
-                <a key={i} href="#" style={{ fontSize: "0.7rem", color: "var(--text-ghost)", textDecoration: "none" }}>{s}</a>
-              ))}
-            </div>
-          </div>
+          <p style={{ fontSize: 12, color: T.textFaint, marginTop: 20 }}>No account required · Encrypted · Auto-deleted after analysis</p>
         </div>
-      </footer>
+      </FadeIn>
+    </section>
+  );
+}
 
-      {/* Floating AI button */}
-      <button
-        onClick={() => scrollTo("upload")}
-        style={{
-          position: "fixed", bottom: "2rem", right: "2rem", zIndex: 50,
-          width: "52px", height: "52px",
-          background: "linear-gradient(135deg, #E8622A, #D4A017)",
-          borderRadius: "14px", border: "none", cursor: "pointer",
-          fontSize: "1.3rem", display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 8px 30px rgba(232,98,42,0.4)",
-          transition: "transform 0.2s"
-        }}
-        onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
-        onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
-        title="Analyse my finances"
-      >🤖</button>
-    </div>
+// ─── Footer ───────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer style={{ borderTop: `1px solid ${T.border}`, padding: "40px 24px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 26, height: 26, borderRadius: 8, background: `linear-gradient(135deg, ${T.emerald}, ${T.cyan})`, opacity: 0.8 }} />
+          <span style={{ fontSize: 14, fontWeight: 500, color: "rgba(255,255,255,0.4)" }}>MoneyLens</span>
+        </div>
+        <div style={{ display: "flex", gap: 24 }}>
+          {["Privacy Policy", "Terms", "Contact"].map(item => (
+            <a key={item} href="#" style={{ color: T.textFaint, fontSize: 13, textDecoration: "none" }}>{item}</a>
+          ))}
+        </div>
+        <div style={{ fontSize: 13, color: T.textFaint }}>© 2025 MoneyLens. All rights reserved.</div>
+      </div>
+    </footer>
+  );
+}
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
+export default function Page() {
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { background: #080B14; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #080B14; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 3px; }
+        @media (max-width: 768px) {
+          .nav-links { display: none !important; }
+        }
+        @media (max-width: 640px) {
+          [style*="gridTemplateColumns: 1fr 1fr"], [style*="gridTemplateColumns: 2fr 3fr"], [style*="gridTemplateColumns: repeat(3"], [style*="gridTemplateColumns: repeat(4"] { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+      <div style={{ minHeight: "100vh", background: T.bg, fontFamily: "'DM Sans', sans-serif", color: T.text, WebkitFontSmoothing: "antialiased" }}>
+        <Navbar />
+        <HeroSection />
+        <WhySection />
+        <BehaviorSection />
+        <AffordabilitySection />
+        <ProjectionSection />
+        <GoalsSection />
+        <HowItWorksSection />
+        <TrustSection />
+        <FinalCTA />
+        <Footer />
+      </div>
+    </>
   );
 }

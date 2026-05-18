@@ -25,10 +25,6 @@ interface LocalMessage {
   createdAt: string;
   suggestedGoal?: SuggestedGoalDto | null;
   createdPlan?: GoalPlanDto | null;
-  /**
-   * Baked-in chatId — set at write-time from chatIdRef so GoalDetectedCard
-   * always receives the real UUID, even before React flushes setActiveChatId.
-   */
   chatId: string;
 }
 
@@ -44,19 +40,13 @@ const fmtTime = (iso: string) =>
 
 const generateId = (): string => {
   try {
-    if (
-      typeof crypto !== "undefined" &&
-      typeof crypto.randomUUID === "function"
-    ) {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
       return crypto.randomUUID();
     }
   } catch (err) {
     console.error("UUID generation failed:", err);
   }
-
-  return `msg_${Date.now()}_${Math.random()
-    .toString(36)
-    .substring(2, 9)}`;
+  return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 };
 
 function renderMarkdown(text: string) {
@@ -87,12 +77,16 @@ const SUGGESTIONS = [
 
 function TypingDots() {
   return (
-    <div className="flex items-center gap-1 py-1 px-0.5">
+    <div className="flex items-center gap-1 py-0.5 px-0.5">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block animate-bounce"
-          style={{ animationDelay: `${i * 0.18}s`, animationDuration: "1.2s" }}
+          className="w-1.5 h-1.5 rounded-full inline-block animate-bounce"
+          style={{
+            background: "#6EE7B7",
+            animationDelay: `${i * 0.18}s`,
+            animationDuration: "1.2s",
+          }}
         />
       ))}
     </div>
@@ -115,14 +109,21 @@ function SidebarItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-2.5 py-2 rounded-xl border transition-colors duration-150 ${
-        active ? "border-violet-200 bg-violet-50" : "border-transparent hover:bg-gray-50"
-      }`}
+      style={{
+        background: active ? "rgba(110,231,183,0.07)" : "transparent",
+        border: active
+          ? "0.5px solid rgba(110,231,183,0.2)"
+          : "0.5px solid transparent",
+      }}
+      className="w-full text-left px-2.5 py-2 rounded-xl transition-colors duration-150 hover:bg-white/[0.04]"
     >
-      <p className={`text-xs font-medium truncate mb-0.5 ${active ? "text-violet-700" : "text-gray-800"}`}>
+      <p
+        className="text-xs font-medium truncate mb-0.5"
+        style={{ color: active ? "#6EE7B7" : "rgba(255,255,255,0.55)" }}
+      >
         {chat.title || "New chat"}
       </p>
-      <p className="text-[10px] text-gray-400">{when}</p>
+      <p style={{ color: "rgba(255,255,255,0.22)", fontSize: "10px" }}>{when}</p>
     </button>
   );
 }
@@ -144,27 +145,32 @@ function MessageBubble({
   return (
     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
       <div
-        className={`max-w-[80%] px-3.5 py-2.5 text-[13px] leading-snug break-words ${
+        style={
           isUser
-            ? "rounded-[14px_14px_3px_14px] bg-violet-600 text-white"
-            : "rounded-[14px_14px_14px_3px] bg-gray-100 text-gray-800 border border-gray-200"
-        }`}
+            ? {
+                background: "linear-gradient(135deg, #6EE7B7, #22d3ee)",
+                color: "#080B14",
+                borderRadius: "14px 14px 3px 14px",
+              }
+            : {
+                background: "rgba(255,255,255,0.05)",
+                border: "0.5px solid rgba(255,255,255,0.09)",
+                color: "rgba(255,255,255,0.75)",
+                borderRadius: "14px 14px 14px 3px",
+              }
+        }
+        className="max-w-[80%] px-3.5 py-2.5 text-[12px] leading-snug break-words font-medium"
       >
         {renderMarkdown(msg.content)}
       </div>
 
-      <p className="text-[10px] text-gray-400 mt-1 px-1">{fmtTime(msg.createdAt)}</p>
+      <p
+        className="text-[10px] mt-1 px-1"
+        style={{ color: "rgba(255,255,255,0.2)" }}
+      >
+        {fmtTime(msg.createdAt)}
+      </p>
 
-      {/*
-        Render GoalDetectedCard when:
-          1. It's an assistant message
-          2. suggestedGoal is present (not null/undefined)
-          3. msg.chatId is a real UUID (not empty string)
-
-        msg.chatId is written from chatIdRef at the moment the message is
-        created, so it's always the correct value regardless of React's
-        state-flush timing.
-      */}
       {!isUser && msg.suggestedGoal && msg.chatId && (
         <GoalDetectedCard
           goal={msg.suggestedGoal}
@@ -181,24 +187,47 @@ function MessageBubble({
 function EmptyState({ onSuggest }: { onSuggest: (s: string) => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 py-6 text-center h-full">
-      <div className="w-12 h-12 rounded-full bg-violet-100 flex items-center justify-center">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <div
+        className="w-12 h-12 rounded-full flex items-center justify-center"
+        style={{
+          background: "rgba(110,231,183,0.1)",
+          border: "0.5px solid rgba(110,231,183,0.2)",
+        }}
+      >
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#6EE7B7"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M12 2a7 7 0 0 1 7 7c0 4-3 6-4 8H9c-1-2-4-4-4-8a7 7 0 0 1 7-7z" />
           <path d="M9 21h6M10 17h4" />
         </svg>
       </div>
       <div>
-        <p className="text-sm font-medium text-gray-800 mb-1">Your financial intelligence engine</p>
-        <p className="text-xs text-gray-400">Ask me anything about your spending, savings, or goals.</p>
+        <p className="text-sm font-semibold mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+          Your financial intelligence engine
+        </p>
+        <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
+          Ask me anything about your spending, savings, or goals.
+        </p>
       </div>
       <div className="flex flex-wrap gap-2 justify-center mt-1">
         {SUGGESTIONS.map((s) => (
           <button
             key={s}
             onClick={() => onSuggest(s)}
-            className="px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50 text-gray-500
-                       text-xs hover:bg-violet-50 hover:text-violet-700 hover:border-violet-200
-                       transition-colors duration-150 cursor-pointer"
+            style={{
+              border: "0.5px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.04)",
+              color: "rgba(255,255,255,0.4)",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+            className="px-3 py-1.5 rounded-full text-xs transition-colors duration-150 cursor-pointer hover:bg-[rgba(110,231,183,0.08)] hover:text-[#6EE7B7]"
           >
             {s}
           </button>
@@ -213,38 +242,16 @@ function EmptyState({ onSuggest }: { onSuggest: (s: string) => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function FloatingChat() {
-  const [open, setOpen]               = useState(false);
+  const [open, setOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [messages, setMessages]       = useState<LocalMessage[]>([]);
-  const [input, setInput]             = useState("");
-  const [isTyping, setIsTyping]       = useState(false);
+  const [messages, setMessages] = useState<LocalMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef       = useRef<HTMLTextAreaElement>(null);
-
-  /**
-   * chatIdRef — always holds the current chat UUID synchronously.
-   * We read this inside async callbacks instead of activeChatId state
-   * to avoid stale-closure bugs.
-   */
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatIdRef = useRef<string | null>(null);
-
-  /**
-   * localMessagesRef — when true, the historyData effect is suppressed.
-   *
-   * Problem it solves:
-   *   After a first send on a new chat, setActiveChatId(res.chatId) triggers
-   *   useGetChatHistoryQuery which fetches the chat history. When historyData
-   *   arrives, the useEffect would normally overwrite our local messages —
-   *   stripping suggestedGoal, resolvedChatId, etc. — making the goal card
-   *   disappear before the user ever sees it.
-   *
-   * Solution:
-   *   Set localMessagesRef.current = true before we optimistically build
-   *   messages ourselves. Only reset it to false when the user explicitly
-   *   selects a chat from the sidebar (where loading history is desired).
-   */
   const localMessagesRef = useRef(false);
 
   // ── RTK Query ──────────────────────────────────────────────────────────────
@@ -256,22 +263,18 @@ export default function FloatingChat() {
     useGetChatHistoryQuery(activeChatId!, { skip: !activeChatId });
 
   const [sendMessage] = useSendChatMessageMutation();
-  
 
   // ── Effects ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Only load history when the user navigated to an existing chat.
-    // Skip when we already have locally-built messages (post-send).
     if (!historyData || localMessagesRef.current) return;
-
     setMessages(
       historyData.map((m: ChatMessageDto) => ({
-        id:        m.id,
-        role:      m.role,
-        content:   m.content,
+        id: m.id,
+        role: m.role,
+        content: m.content,
         createdAt: m.createdAt,
-        chatId:    chatIdRef.current ?? "",
+        chatId: chatIdRef.current ?? "",
       }))
     );
   }, [historyData]);
@@ -288,148 +291,182 @@ export default function FloatingChat() {
 
   const startNewChat = useCallback(() => {
     localMessagesRef.current = false;
-    chatIdRef.current        = null;
+    chatIdRef.current = null;
     setActiveChatId(null);
     setMessages([]);
   }, []);
 
   const selectChat = useCallback((id: string) => {
     if (id === chatIdRef.current) return;
-    // Sidebar selection → we WANT history to load
     localMessagesRef.current = false;
-    chatIdRef.current        = id;
+    chatIdRef.current = id;
     setActiveChatId(id);
     setMessages([]);
   }, []);
 
-  const handleSend = useCallback(async (text?: string) => {
-    const content = (text ?? input).trim();
-    if (!content || isTyping) return;
+  const handleSend = useCallback(
+    async (text?: string) => {
+      const content = (text ?? input).trim();
+      if (!content || isTyping) return;
 
-    // Block history effect from overwriting our optimistic messages
-    localMessagesRef.current = true;
+      localMessagesRef.current = true;
 
-    // Optimistic user message
-    setMessages((prev) => [
-      ...prev,
-      {
-        id:        generateId(),
-        role:      "USER" as const,
-        content,
-        createdAt: new Date().toISOString(),
-        chatId:    chatIdRef.current ?? "",
-      },
-    ]);
-    setInput("");
-    setIsTyping(true);
-
-    try {
-      const res = await sendMessage({
-        message:     content,
-        chatId:      chatIdRef.current, // null on first message in a new chat
-        statementId: undefined as any,
-      }).unwrap();
-
-      /**
-       * Resolve the definitive chatId before touching React state.
-       *
-       * On a brand-new chat:
-       *   chatIdRef.current === null
-       *   res.newChat       === true
-       *   res.chatId        === "d1d96904-..." ← what the backend assigned
-       *
-       * We capture it now so the assistant message object gets the real UUID
-       * baked in. MessageBubble reads msg.chatId — not activeChatId state —
-       * so GoalDetectedCard renders correctly on the very first render, before
-       * React has flushed setActiveChatId.
-       */
-      const resolvedChatId: string =
-        res.newChat && res.chatId
-          ? res.chatId
-          : (chatIdRef.current ?? "");
-
-      // Update ref synchronously, then schedule React state update
-      if (res.newChat && res.chatId) {
-        chatIdRef.current = res.chatId;
-        setActiveChatId(res.chatId);
-        refetchList();
-      }
-
-      // Append assistant reply with baked-in chatId
       setMessages((prev) => [
         ...prev,
         {
-          id:            generateId(),
-          role:          "ASSISTANT" as const,
-          content:       res.reply,
-          createdAt:     new Date().toISOString(),
-          suggestedGoal: res.suggestedGoal ?? null,
-          createdPlan:   res.createdPlan   ?? null,
-          chatId:        resolvedChatId,          // ← the fix
-        },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id:        generateId(),
-          role:      "ASSISTANT" as const,
-          content:   "Something went wrong. Please try again.",
+          id: generateId(),
+          role: "USER" as const,
+          content,
           createdAt: new Date().toISOString(),
-          chatId:    chatIdRef.current ?? "",
+          chatId: chatIdRef.current ?? "",
         },
       ]);
-    } finally {
-      setIsTyping(false);
-    }
-  }, [input, isTyping, sendMessage, refetchList]);
+      setInput("");
+      setIsTyping(true);
 
-  const handleGoalConfirmed = useCallback((
-    plan: GoalPlanDto | null,
-    reply: string,
-    msgId: string,
-    frequency: "weekly" | "monthly" | null,
-  ) => {
-    // Remove the goal card from the originating message
-    setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, suggestedGoal: null } : m))
-    );
+      try {
+        const res = await sendMessage({
+          message: content,
+          chatId: chatIdRef.current,
+          statementId: undefined as any,
+        }).unwrap();
 
-    // Append AI confirmation reply
-    setMessages((prev) => [
-      ...prev,
-      {
-        id:          generateId(),
-        role:        "ASSISTANT" as const,
-        content:     reply,
-        createdAt:   new Date().toISOString(),
-        createdPlan: plan ?? null,
-        chatId:      chatIdRef.current ?? "",
-      },
-    ]);
+        const resolvedChatId: string =
+          res.newChat && res.chatId ? res.chatId : (chatIdRef.current ?? "");
 
-    // Send chosen cadence as a message → triggers P2 plan generation
-    if (frequency) {
-      setTimeout(() => handleSend(frequency), 400);
-    }
-  }, [handleSend]);
+        if (res.newChat && res.chatId) {
+          chatIdRef.current = res.chatId;
+          setActiveChatId(res.chatId);
+          refetchList();
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: generateId(),
+            role: "ASSISTANT" as const,
+            content: res.reply,
+            createdAt: new Date().toISOString(),
+            suggestedGoal: res.suggestedGoal ?? null,
+            createdPlan: res.createdPlan ?? null,
+            chatId: resolvedChatId,
+          },
+        ]);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: generateId(),
+            role: "ASSISTANT" as const,
+            content: "Something went wrong. Please try again.",
+            createdAt: new Date().toISOString(),
+            chatId: chatIdRef.current ?? "",
+          },
+        ]);
+      } finally {
+        setIsTyping(false);
+      }
+    },
+    [input, isTyping, sendMessage, refetchList]
+  );
+
+  const handleGoalConfirmed = useCallback(
+    (
+      plan: GoalPlanDto | null,
+      reply: string,
+      msgId: string,
+      frequency: "weekly" | "monthly" | null
+    ) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, suggestedGoal: null } : m))
+      );
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          role: "ASSISTANT" as const,
+          content: reply,
+          createdAt: new Date().toISOString(),
+          createdPlan: plan ?? null,
+          chatId: chatIdRef.current ?? "",
+        },
+      ]);
+      if (frequency) {
+        setTimeout(() => handleSend(frequency), 400);
+      }
+    },
+    [handleSend]
+  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
         @keyframes mlFadeUp {
           from { opacity: 0; transform: translateY(14px) scale(0.97); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
         .ml-window { animation: mlFadeUp 0.22s ease forwards; }
-        .ml-scroll::-webkit-scrollbar       { width: 4px; }
+
+        .ml-grid-bg {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+          background-size: 52px 52px;
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .ml-glow-orb {
+          position: absolute;
+          top: -80px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 500px;
+          height: 400px;
+          background: radial-gradient(ellipse, rgba(110,231,183,0.07) 0%, rgba(59,130,246,0.05) 45%, transparent 70%);
+          pointer-events: none;
+          border-radius: 50%;
+          z-index: 0;
+        }
+
+        .ml-scroll::-webkit-scrollbar       { width: 3px; }
         .ml-scroll::-webkit-scrollbar-track { background: transparent; }
-        .ml-scroll::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
-        .ml-textarea                        { scrollbar-width: none; }
-        .ml-textarea::-webkit-scrollbar     { display: none; }
-        .ml-textarea:focus                  { outline: none; border-color: #a78bfa !important; }
+        .ml-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
+
+        .ml-textarea-field                    { scrollbar-width: none; font-family: 'DM Sans', sans-serif; }
+        .ml-textarea-field::-webkit-scrollbar { display: none; }
+        .ml-textarea-field:focus              { outline: none; border-color: rgba(110,231,183,0.4) !important; background: rgba(110,231,183,0.03) !important; }
+
+        .ml-chip-btn:hover {
+          background: rgba(110,231,183,0.08) !important;
+          color: #6EE7B7 !important;
+          border-color: rgba(110,231,183,0.2) !important;
+        }
+
+        .ml-sidebar-item-hover:hover {
+          background: rgba(255,255,255,0.04);
+          border-color: rgba(255,255,255,0.07) !important;
+        }
+
+        .ml-goals-link:hover {
+          background: rgba(110,231,183,0.06);
+          color: #6EE7B7 !important;
+        }
+
+        .ml-toggle-btn:hover {
+          background: rgba(255,255,255,0.08) !important;
+          color: rgba(255,255,255,0.6) !important;
+        }
+
+        .ml-new-chat-btn:hover {
+          background: rgba(110,231,183,0.14) !important;
+        }
       `}</style>
 
       {/* FAB */}
@@ -437,15 +474,19 @@ export default function FloatingChat() {
         onClick={() => setOpen((o) => !o)}
         aria-label="Toggle chat"
         className="fixed bottom-7 right-7 z-[9999] w-14 h-14 rounded-full flex items-center
-                   justify-center bg-violet-600 hover:bg-violet-700 active:scale-95 border-none
-                   cursor-pointer shadow-[0_4px_20px_rgba(124,58,237,0.45)] transition-all duration-200"
+                   justify-center border-none cursor-pointer active:scale-95
+                   transition-all duration-200"
+        style={{
+          background: "linear-gradient(135deg, #6EE7B7, #22d3ee)",
+          boxShadow: "0 4px 22px rgba(110,231,183,0.35)",
+        }}
       >
         {open ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#080B14" strokeWidth="2.5" strokeLinecap="round">
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         ) : (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#080B14" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         )}
@@ -453,33 +494,70 @@ export default function FloatingChat() {
 
       {/* Chat window */}
       {open && (
-        <div className={`ml-window fixed bottom-24 right-7 z-[9998] bg-white border border-gray-200
-                         rounded-2xl flex overflow-hidden shadow-2xl transition-[width] duration-200
-                         ${sidebarOpen ? "w-[700px]" : "w-[400px]"} h-[580px]`}>
+        <div
+          className={`ml-window fixed bottom-24 right-7 z-[9998] flex overflow-hidden
+                      rounded-2xl transition-[width] duration-200
+                      ${sidebarOpen ? "w-[700px]" : "w-[400px]"} h-[580px]`}
+          style={{
+            background: "#080B14",
+            border: "0.5px solid rgba(255,255,255,0.09)",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.05)",
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
+          {/* Background decoration */}
+          <div className="ml-grid-bg" />
+          <div className="ml-glow-orb" />
 
           {/* Sidebar */}
           {sidebarOpen && (
-            <div className="w-52 flex-shrink-0 border-r border-gray-100 flex flex-col bg-gray-50">
-              <div className="px-3.5 pt-3.5 pb-2.5 border-b border-gray-100">
-                <p className="text-[10px] font-bold tracking-[0.14em] uppercase text-gray-400 mb-2.5">
+            <div
+              className="w-52 flex-shrink-0 flex flex-col relative z-10"
+              style={{
+                borderRight: "0.5px solid rgba(255,255,255,0.07)",
+                background: "rgba(255,255,255,0.015)",
+              }}
+            >
+              {/* Sidebar header */}
+              <div
+                className="px-3.5 pt-3.5 pb-2.5"
+                style={{ borderBottom: "0.5px solid rgba(255,255,255,0.07)" }}
+              >
+                <p
+                  className="font-bold mb-2.5"
+                  style={{
+                    fontSize: "9px",
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.25)",
+                  }}
+                >
                   Conversations
                 </p>
                 <button
                   onClick={startNewChat}
-                  className="w-full py-1.5 rounded-lg border border-violet-200 bg-violet-50
-                             text-violet-700 text-xs font-semibold flex items-center justify-center
-                             gap-1.5 hover:bg-violet-100 transition-colors duration-150 cursor-pointer"
+                  className="ml-new-chat-btn w-full py-1.5 rounded-lg flex items-center justify-center
+                             gap-1.5 text-xs font-semibold transition-colors duration-150 cursor-pointer"
+                  style={{
+                    border: "0.5px solid rgba(110,231,183,0.25)",
+                    background: "rgba(110,231,183,0.07)",
+                    color: "#6EE7B7",
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M12 5v14M5 12h14" />
                   </svg>
                   New chat
                 </button>
               </div>
 
+              {/* Chat list */}
               <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-0.5 ml-scroll">
                 {chatList.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center mt-6">No chats yet</p>
+                  <p className="text-xs text-center mt-6" style={{ color: "rgba(255,255,255,0.22)" }}>
+                    No chats yet
+                  </p>
                 ) : (
                   chatList.map((c: ChatListItem) => (
                     <SidebarItem
@@ -492,11 +570,16 @@ export default function FloatingChat() {
                 )}
               </div>
 
-              <div className="px-3 pb-3 pt-2 border-t border-gray-100">
+              {/* Sidebar footer */}
+              <div
+                className="px-3 pb-3 pt-2"
+                style={{ borderTop: "0.5px solid rgba(255,255,255,0.07)" }}
+              >
                 <a
                   href="/goals"
-                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium
-                             text-gray-500 hover:bg-violet-50 hover:text-violet-700 transition-colors duration-150"
+                  className="ml-goals-link flex items-center gap-2 px-2.5 py-2 rounded-lg
+                             text-xs font-medium transition-colors duration-150"
+                  style={{ color: "rgba(255,255,255,0.3)" }}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
@@ -509,32 +592,49 @@ export default function FloatingChat() {
           )}
 
           {/* Main panel */}
-          <div className="flex-1 flex flex-col min-w-0 bg-white">
+          <div className="flex-1 flex flex-col min-w-0 relative z-10">
 
             {/* Header */}
-            <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center gap-2.5 flex-shrink-0">
+            <div
+              className="px-3.5 py-2.5 flex items-center gap-2.5 flex-shrink-0"
+              style={{
+                borderBottom: "0.5px solid rgba(255,255,255,0.07)",
+                background: "rgba(255,255,255,0.015)",
+              }}
+            >
               <button
                 onClick={() => setSidebarOpen((s) => !s)}
-                className="w-8 h-8 rounded-lg border border-gray-200 bg-gray-50 flex items-center
-                           justify-center text-gray-500 hover:bg-gray-100 transition-colors duration-150
-                           cursor-pointer flex-shrink-0"
+                className="ml-toggle-btn w-8 h-8 rounded-lg flex items-center justify-center
+                           transition-colors duration-150 cursor-pointer flex-shrink-0"
+                style={{
+                  border: "0.5px solid rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.04)",
+                  color: "rgba(255,255,255,0.3)",
+                }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <path d="M9 3v18" />
                 </svg>
               </button>
 
-              <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {/* Avatar */}
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: "linear-gradient(135deg, rgba(110,231,183,0.18), rgba(59,130,246,0.18))",
+                  border: "0.5px solid rgba(110,231,183,0.25)",
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6EE7B7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a7 7 0 0 1 7 7c0 4-3 6-4 8H9c-1-2-4-4-4-8a7 7 0 0 1 7-7z" />
                   <path d="M9 21h6M10 17h4" />
                 </svg>
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">MoneyLens AI</p>
-                <p className="text-[11px] text-gray-400 truncate">
+                <p className="text-sm font-semibold" style={{ color: "#fff" }}>MoneyLens AI</p>
+                <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.28)" }}>
                   {activeChatId
                     ? chatList.find((c: ChatListItem) => c.id === activeChatId)?.title || "Active chat"
                     : "New conversation"}
@@ -542,7 +642,9 @@ export default function FloatingChat() {
               </div>
 
               {isTyping && (
-                <p className="text-[11px] text-violet-600 font-semibold flex-shrink-0">Thinking…</p>
+                <p className="text-[11px] font-semibold flex-shrink-0" style={{ color: "#6EE7B7" }}>
+                  Thinking…
+                </p>
               )}
             </div>
 
@@ -562,7 +664,14 @@ export default function FloatingChat() {
 
               {isTyping && (
                 <div className="flex flex-col items-start">
-                  <div className="px-3.5 py-2.5 rounded-[14px_14px_14px_3px] bg-gray-100 border border-gray-200">
+                  <div
+                    className="px-3.5 py-2.5"
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "0.5px solid rgba(255,255,255,0.09)",
+                      borderRadius: "14px 14px 14px 3px",
+                    }}
+                  >
                     <TypingDots />
                   </div>
                 </div>
@@ -571,16 +680,27 @@ export default function FloatingChat() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="px-3 pb-3 pt-2.5 border-t border-gray-100 flex gap-2 items-end flex-shrink-0">
+            {/* Input bar */}
+            <div
+              className="px-3 pb-3 pt-2.5 flex gap-2 items-end flex-shrink-0"
+              style={{
+                borderTop: "0.5px solid rgba(255,255,255,0.07)",
+                background: "rgba(255,255,255,0.015)",
+              }}
+            >
               <textarea
                 ref={inputRef}
                 value={input}
                 rows={1}
                 placeholder="Ask about your finances…"
-                className="ml-textarea flex-1 resize-none border border-gray-200 rounded-xl px-3 py-2.5
-                           text-[13px] bg-gray-50 text-gray-800 leading-snug min-h-[38px] max-h-[100px]
-                           transition-[border-color] duration-150 font-[inherit]"
+                className="ml-textarea-field flex-1 resize-none rounded-xl px-3 py-2.5
+                           text-[12px] leading-snug min-h-[38px] max-h-[100px]
+                           transition-[border-color,background] duration-150"
+                style={{
+                  border: "0.5px solid rgba(255,255,255,0.1)",
+                  background: "rgba(255,255,255,0.04)",
+                  color: "rgba(255,255,255,0.8)",
+                }}
                 onChange={(e) => {
                   setInput(e.target.value);
                   e.target.style.height = "auto";
@@ -597,19 +717,23 @@ export default function FloatingChat() {
                 onClick={() => handleSend()}
                 disabled={!input.trim() || isTyping}
                 aria-label="Send"
-                className="w-9 h-9 rounded-full bg-violet-600 flex-shrink-0 flex items-center
-                           justify-center border-none hover:bg-violet-700 active:scale-90
-                           disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150
-                           cursor-pointer"
+                className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center
+                           border-none active:scale-90 disabled:opacity-35 disabled:cursor-not-allowed
+                           transition-all duration-150 cursor-pointer hover:opacity-85"
+                style={{
+                  background: "linear-gradient(135deg, #6EE7B7, #22d3ee)",
+                }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#080B14" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" />
                 </svg>
               </button>
             </div>
 
             <div className="pb-2 px-3.5 flex justify-end flex-shrink-0">
-              <p className="text-[10px] text-gray-400">Enter to send · Shift+Enter for new line</p>
+              <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.16)" }}>
+                Enter to send · Shift+Enter for new line
+              </p>
             </div>
           </div>
         </div>

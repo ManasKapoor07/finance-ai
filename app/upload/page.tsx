@@ -88,7 +88,6 @@ export default function UploadPage() {
       setStatus("success");
       toast.success("Statement uploaded successfully!");
 
-      const statementId = response?.data?.statementId;
       setTimeout(() => router.push(`/dashboard`), 1200);
 
     } catch (err: any) {
@@ -111,200 +110,703 @@ export default function UploadPage() {
   const isSuccess   = status === "success";
 
   return (
-    <div className="min-h-screen bg-[#f4f2ee] flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-2xl">
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
 
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-10">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#4f6ef7] to-[#7c3aed] flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <span className="text-white font-extrabold text-lg">M</span>
+        .ml-upload-root {
+          min-height: 100vh;
+          background: #080B14;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 16px;
+          font-family: 'DM Sans', sans-serif;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .ml-grid-bg {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+          background-size: 60px 60px;
+          pointer-events: none;
+        }
+
+        .ml-glow-top {
+          position: absolute;
+          top: -120px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 700px;
+          height: 700px;
+          background: radial-gradient(ellipse, rgba(110,231,183,0.09) 0%, rgba(59,130,246,0.06) 45%, transparent 70%);
+          pointer-events: none;
+          border-radius: 50%;
+        }
+
+        .ml-glow-bottom {
+          position: absolute;
+          bottom: -100px;
+          right: 15%;
+          width: 400px;
+          height: 400px;
+          background: radial-gradient(ellipse, rgba(59,130,246,0.07) 0%, transparent 70%);
+          pointer-events: none;
+          border-radius: 50%;
+        }
+
+        .ml-upload-inner {
+          position: relative;
+          z-index: 1;
+          width: 100%;
+          max-width: 560px;
+        }
+
+        /* Logo */
+        .ml-logo {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin-bottom: 32px;
+        }
+
+        .ml-logo-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 14px;
+          background: linear-gradient(135deg, #6EE7B7, #3B82F6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          font-weight: 800;
+          color: #080B14;
+          flex-shrink: 0;
+          box-shadow: 0 8px 24px rgba(110,231,183,0.2);
+        }
+
+        .ml-logo-text h1 {
+          font-family: 'Bricolage Grotesque', sans-serif;
+          font-size: 22px;
+          font-weight: 800;
+          color: #fff;
+          letter-spacing: -0.03em;
+          line-height: 1;
+        }
+
+        .ml-logo-text p {
+          font-size: 11px;
+          color: rgba(255,255,255,0.3);
+          margin-top: 3px;
+        }
+
+        /* Header */
+        .ml-header {
+          text-align: center;
+          margin-bottom: 32px;
+        }
+
+        .ml-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 14px;
+          border-radius: 99px;
+          background: rgba(110,231,183,0.08);
+          border: 0.5px solid rgba(110,231,183,0.2);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: #6EE7B7;
+          margin-bottom: 20px;
+        }
+
+        .ml-eyebrow-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #6EE7B7;
+          box-shadow: 0 0 6px #6EE7B7;
+        }
+
+        .ml-heading {
+          font-family: 'Bricolage Grotesque', sans-serif;
+          font-size: 42px;
+          font-weight: 800;
+          color: #fff;
+          letter-spacing: -0.04em;
+          line-height: 1.05;
+          margin-bottom: 14px;
+        }
+
+        .ml-subtext {
+          font-size: 13px;
+          color: rgba(255,255,255,0.35);
+          line-height: 1.7;
+          max-width: 380px;
+          margin: 0 auto;
+        }
+
+        /* Bank Selector */
+        .ml-field-group {
+          margin-bottom: 16px;
+        }
+
+        .ml-field-group label {
+          display: block;
+          font-size: 12px;
+          font-weight: 600;
+          color: rgba(255,255,255,0.5);
+          margin-bottom: 8px;
+          letter-spacing: 0.01em;
+        }
+
+        .ml-field-group label span {
+          color: #f87171;
+          margin-left: 2px;
+        }
+
+        .ml-select-wrap {
+          position: relative;
+        }
+
+        .ml-select {
+          width: 100%;
+          height: 52px;
+          background: rgba(255,255,255,0.04);
+          border: 0.5px solid rgba(255,255,255,0.1);
+          border-radius: 16px;
+          padding: 0 44px 0 16px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #fff;
+          font-family: 'DM Sans', sans-serif;
+          outline: none;
+          appearance: none;
+          cursor: pointer;
+          transition: border-color 0.2s, background 0.2s;
+        }
+
+        .ml-select:focus {
+          border-color: rgba(110,231,183,0.45);
+          background: rgba(110,231,183,0.04);
+        }
+
+        .ml-select option {
+          background: #111827;
+          color: #fff;
+        }
+
+        .ml-select-chevron {
+          position: absolute;
+          right: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: rgba(255,255,255,0.25);
+          pointer-events: none;
+        }
+
+        /* Upload Card */
+        .ml-card {
+          background: rgba(255,255,255,0.04);
+          border: 0.5px solid rgba(255,255,255,0.09);
+          border-radius: 28px;
+          padding: 36px 32px;
+          backdrop-filter: blur(20px);
+          position: relative;
+          text-align: center;
+          transition: border-color 0.25s, background 0.25s;
+          cursor: pointer;
+        }
+
+        .ml-card::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 28px;
+          background: linear-gradient(135deg, rgba(110,231,183,0.04) 0%, rgba(59,130,246,0.02) 50%, transparent 100%);
+          pointer-events: none;
+        }
+
+        .ml-card.is-dragging {
+          border-color: rgba(110,231,183,0.5);
+          background: rgba(110,231,183,0.05);
+        }
+
+        .ml-card.is-selected {
+          border-color: rgba(110,231,183,0.25);
+          cursor: default;
+        }
+
+        .ml-card.is-error {
+          border-color: rgba(248,113,113,0.4);
+          cursor: default;
+        }
+
+        .ml-card.is-success {
+          border-color: rgba(110,231,183,0.4);
+          cursor: default;
+        }
+
+        .ml-card.is-uploading {
+          cursor: default;
+        }
+
+        /* Icon boxes */
+        .ml-icon-box {
+          width: 72px;
+          height: 72px;
+          border-radius: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 20px;
+        }
+
+        .ml-icon-box.default {
+          background: rgba(110,231,183,0.1);
+          border: 0.5px solid rgba(110,231,183,0.2);
+        }
+
+        .ml-icon-box.success {
+          background: rgba(110,231,183,0.1);
+          border: 0.5px solid rgba(110,231,183,0.3);
+        }
+
+        .ml-icon-box.error {
+          background: rgba(248,113,113,0.1);
+          border: 0.5px solid rgba(248,113,113,0.25);
+        }
+
+        .ml-card-title {
+          font-family: 'Bricolage Grotesque', sans-serif;
+          font-size: 22px;
+          font-weight: 800;
+          color: #fff;
+          letter-spacing: -0.03em;
+          margin-bottom: 8px;
+        }
+
+        .ml-card-sub {
+          font-size: 13px;
+          color: rgba(255,255,255,0.35);
+          margin-bottom: 20px;
+          line-height: 1.6;
+        }
+
+        /* Type badges */
+        .ml-badges {
+          display: flex;
+          justify-content: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .ml-badge {
+          padding: 4px 12px;
+          border-radius: 8px;
+          background: rgba(255,255,255,0.04);
+          border: 0.5px solid rgba(255,255,255,0.1);
+          font-size: 11px;
+          font-weight: 600;
+          color: rgba(255,255,255,0.4);
+        }
+
+        .ml-badge.limit {
+          color: rgba(255,255,255,0.2);
+          border-color: transparent;
+          background: transparent;
+        }
+
+        /* Password field */
+        .ml-pw-wrap {
+          max-width: 380px;
+          margin: 0 auto 20px;
+          text-align: left;
+        }
+
+        .ml-pw-wrap label {
+          display: block;
+          font-size: 12px;
+          font-weight: 600;
+          color: rgba(255,255,255,0.5);
+          margin-bottom: 8px;
+        }
+
+        .ml-pw-wrap label span {
+          color: rgba(255,255,255,0.22);
+          font-weight: 400;
+          margin-left: 4px;
+        }
+
+        .ml-field {
+          height: 52px;
+          background: rgba(255,255,255,0.04);
+          border: 0.5px solid rgba(255,255,255,0.1);
+          border-radius: 16px;
+          padding: 0 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          transition: border-color 0.2s, background 0.2s;
+        }
+
+        .ml-field:focus-within {
+          border-color: rgba(110,231,183,0.45);
+          background: rgba(110,231,183,0.04);
+        }
+
+        .ml-field svg {
+          color: rgba(255,255,255,0.25);
+          flex-shrink: 0;
+        }
+
+        .ml-field input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          outline: none;
+          font-size: 13px;
+          color: #fff;
+          font-family: 'DM Sans', sans-serif;
+        }
+
+        .ml-field input::placeholder {
+          color: rgba(255,255,255,0.2);
+        }
+
+        /* Remove / retry button */
+        .ml-ghost-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 18px;
+          border-radius: 12px;
+          background: rgba(255,255,255,0.04);
+          border: 0.5px solid rgba(255,255,255,0.1);
+          font-size: 12px;
+          font-weight: 600;
+          color: rgba(255,255,255,0.4);
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          transition: all 0.2s;
+        }
+
+        .ml-ghost-btn:hover {
+          background: rgba(255,255,255,0.07);
+          border-color: rgba(255,255,255,0.18);
+          color: rgba(255,255,255,0.65);
+        }
+
+        /* Progress bar */
+        .ml-progress-track {
+          width: 100%;
+          height: 3px;
+          background: rgba(255,255,255,0.07);
+          border-radius: 99px;
+          overflow: hidden;
+          margin-top: 24px;
+        }
+
+        .ml-progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #6EE7B7, #22d3ee);
+          border-radius: 99px;
+          transition: width 0.3s ease;
+          box-shadow: 0 0 8px rgba(110,231,183,0.5);
+        }
+
+        .ml-progress-pct {
+          font-size: 12px;
+          color: rgba(255,255,255,0.3);
+          margin-top: 10px;
+        }
+
+        /* Error message */
+        .ml-error-text {
+          color: #f87171;
+          font-size: 12px;
+          text-align: center;
+          margin-top: 12px;
+        }
+
+        /* Primary button */
+        .ml-btn-primary {
+          width: 100%;
+          height: 52px;
+          border-radius: 16px;
+          background: linear-gradient(135deg, #6EE7B7, #22d3ee);
+          color: #080B14;
+          font-weight: 700;
+          font-size: 13px;
+          border: none;
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          letter-spacing: 0.01em;
+          margin-top: 16px;
+          transition: all 0.2s;
+          box-shadow: 0 8px 24px rgba(110,231,183,0.2);
+        }
+
+        .ml-btn-primary:hover:not(:disabled) {
+          opacity: 0.9;
+          transform: scale(0.99);
+        }
+
+        .ml-btn-primary:active:not(:disabled) {
+          transform: scale(0.97);
+        }
+
+        .ml-btn-primary:disabled {
+          background: rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.25);
+          cursor: not-allowed;
+          box-shadow: none;
+        }
+
+        /* Secondary / outline button */
+        .ml-btn-outline {
+          width: 100%;
+          height: 52px;
+          border-radius: 16px;
+          background: rgba(255,255,255,0.04);
+          border: 0.5px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.55);
+          font-weight: 600;
+          font-size: 13px;
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          margin-top: 16px;
+          transition: all 0.2s;
+        }
+
+        .ml-btn-outline:hover {
+          background: rgba(255,255,255,0.07);
+          border-color: rgba(255,255,255,0.18);
+          color: rgba(255,255,255,0.8);
+        }
+
+        /* Trust badges */
+        .ml-trust {
+          display: flex;
+          justify-content: center;
+          gap: 20px;
+          flex-wrap: wrap;
+          margin-top: 28px;
+        }
+
+        .ml-trust-item {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 11px;
+          color: rgba(255,255,255,0.25);
+        }
+
+        .ml-trust-dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #6EE7B7;
+          box-shadow: 0 0 4px #6EE7B7;
+          flex-shrink: 0;
+        }
+      `}</style>
+
+      <div className="ml-upload-root">
+        <div className="ml-grid-bg" />
+        <div className="ml-glow-top" />
+        <div className="ml-glow-bottom" />
+
+        <div className="ml-upload-inner">
+          {/* Logo */}
+          <div className="ml-logo">
+            <div className="ml-logo-icon">M</div>
+            <div className="ml-logo-text">
+              <h1>MoneyLens</h1>
+              <p>Financial Intelligence Platform</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-[#111]">MoneyLens</h1>
-            <p className="text-xs text-[#9ca3af] mt-0.5">Financial Intelligence Platform</p>
+
+          {/* Header */}
+          <div className="ml-header">
+            <div className="ml-eyebrow">
+              <span className="ml-eyebrow-dot" />
+              STEP 1 OF 1
+            </div>
+            <h1 className="ml-heading">
+              Upload your<br />bank statement
+            </h1>
+            <p className="ml-subtext">
+              We'll analyse every transaction and generate insights about your spending, saving and financial behavior.
+            </p>
           </div>
-        </div>
 
-        {/* Header */}
-        <div className="text-center mb-10">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#eef2ff] text-[#4f6ef7] text-xs font-bold tracking-wide border border-[#dbe4ff]">
-            <span className="w-2 h-2 rounded-full bg-[#22c55e]" />
-            STEP 1 OF 1
-          </span>
-          <h1 className="text-[44px] leading-[1.05] tracking-[-0.05em] font-extrabold text-[#111] mt-6">
-            Upload your<br />bank statement
-          </h1>
-          <p className="text-[#9ca3af] text-sm mt-5 max-w-md mx-auto leading-6">
-            We'll analyse every transaction and generate insights about your spending, saving and financial behavior.
-          </p>
-        </div>
-
-        {/* Bank Selector */}
-        <div className="mb-5">
-          <label className="block text-sm font-semibold text-[#374151] mb-2">
-            Select your bank <span className="text-red-400">*</span>
-          </label>
-          <div className="relative">
-            <select
-              value={bankName}
-              onChange={e => { setBankName(e.target.value); setError(""); }}
-              className="w-full h-14 rounded-2xl border border-[#e5e7eb] bg-white pl-5 pr-10 text-sm font-semibold text-[#111] outline-none focus:border-[#4f6ef7] appearance-none cursor-pointer"
-            >
-              <option value="">— Choose your bank —</option>
-              {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9ca3af] pointer-events-none" />
+          {/* Bank Selector */}
+          <div className="ml-field-group">
+            <label>Select your bank <span>*</span></label>
+            <div className="ml-select-wrap">
+              <select
+                value={bankName}
+                onChange={e => { setBankName(e.target.value); setError(""); }}
+                className="ml-select"
+              >
+                <option value="">— Choose your bank —</option>
+                {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <ChevronDown className="ml-select-chevron" size={16} />
+            </div>
           </div>
-        </div>
 
-        {/* Upload Card */}
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={() => !isUploading && !isSuccess && status !== "selected" && inputRef.current?.click()}
-          className={`bg-white rounded-[32px] border-2 transition-all duration-300 p-10 text-center shadow-[0_10px_40px_rgba(0,0,0,0.04)] ${
-            isDragging   ? "border-[#4f6ef7] bg-[#f8faff]" :
-            status === "error"    ? "border-red-300"   :
-            status === "selected" ? "border-[#c7d2fe]" :
-            status === "success"  ? "border-green-300" :
-            "border-[#ececec]"
-          }`}
-        >
-          <input ref={inputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} onChange={handleFileInput} className="hidden" />
+          {/* Upload Card */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => !isUploading && !isSuccess && status !== "selected" && status !== "error" && inputRef.current?.click()}
+            className={`ml-card ${
+              isDragging   ? "is-dragging"  :
+              status === "error"    ? "is-error"    :
+              status === "selected" ? "is-selected" :
+              isSuccess             ? "is-success"  :
+              isUploading           ? "is-uploading": ""
+            }`}
+          >
+            <input ref={inputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} onChange={handleFileInput} className="hidden" style={{ display: "none" }} />
 
-          {/* Idle / Dragging */}
-          {(status === "idle" || status === "dragging") && (
-            <>
-              <div className="w-20 h-20 rounded-[24px] bg-[#eef2ff] border border-[#dbe4ff] flex items-center justify-center mx-auto mb-6">
-                <Upload className="w-8 h-8 text-[#4f6ef7]" />
-              </div>
-              <h3 className="text-2xl font-bold text-[#111] tracking-tight">
-                {isDragging ? "Drop your statement" : "Upload bank statement"}
-              </h3>
-              <p className="text-[#9ca3af] text-sm mt-3 mb-6">Drag & drop your file here or click to browse</p>
-              <div className="flex justify-center gap-2 flex-wrap">
-                {["PDF","CSV","Excel"].map(t => (
-                  <span key={t} className="px-3 py-1 rounded-lg bg-[#f9fafb] border border-[#ececec] text-xs font-semibold text-[#6b7280]">{t}</span>
-                ))}
-                <span className="px-3 py-1 text-xs text-[#9ca3af]">Max 10MB</span>
-              </div>
-            </>
-          )}
-
-          {/* Selected */}
-          {status === "selected" && file && (
-            <>
-              <div className="w-20 h-20 rounded-[24px] bg-[#eef2ff] border border-[#dbe4ff] flex items-center justify-center mx-auto mb-6">
-                <FileText className="w-8 h-8 text-[#4f6ef7]" />
-              </div>
-              <h3 className="text-xl font-bold text-[#111] tracking-tight">{file.name}</h3>
-              <p className="text-[#9ca3af] text-sm mt-2 mb-6">{formatSize(file.size)}</p>
-
-              {isPdf && (
-                <div className="max-w-md mx-auto text-left mb-6">
-                  <label className="block text-sm font-semibold text-[#374151] mb-2">
-                    PDF Password <span className="text-[#9ca3af] font-normal">(if protected)</span>
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9ca3af]" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="Enter PDF password"
-                      className="w-full h-14 rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] pl-11 pr-4 text-sm outline-none focus:border-[#4f6ef7]"
-                    />
-                  </div>
+            {/* Idle / Dragging */}
+            {(status === "idle" || status === "dragging") && (
+              <>
+                <div className="ml-icon-box default">
+                  <Upload size={28} color="#6EE7B7" />
                 </div>
-              )}
+                <h3 className="ml-card-title">
+                  {isDragging ? "Drop your statement" : "Upload bank statement"}
+                </h3>
+                <p className="ml-card-sub">Drag & drop your file here, or click to browse</p>
+                <div className="ml-badges">
+                  {["PDF", "CSV", "Excel"].map(t => (
+                    <span key={t} className="ml-badge">{t}</span>
+                  ))}
+                  <span className="ml-badge limit">Max 10 MB</span>
+                </div>
+              </>
+            )}
 
+            {/* Selected */}
+            {status === "selected" && file && (
+              <>
+                <div className="ml-icon-box default">
+                  <FileText size={28} color="#6EE7B7" />
+                </div>
+                <h3 className="ml-card-title">{file.name}</h3>
+                <p className="ml-card-sub">{formatSize(file.size)}</p>
+
+                {isPdf && (
+                  <div className="ml-pw-wrap">
+                    <label>PDF Password <span>(if protected)</span></label>
+                    <div className="ml-field">
+                      <Lock size={16} />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Enter PDF password"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={e => { e.stopPropagation(); clearFile(); }}
+                  className="ml-ghost-btn"
+                >
+                  <X size={14} /> Remove file
+                </button>
+              </>
+            )}
+
+            {/* Uploading */}
+            {isUploading && (
+              <>
+                <div className="ml-icon-box default">
+                  <Loader2 size={28} color="#6EE7B7" style={{ animation: "spin 1s linear infinite" }} />
+                </div>
+                <h3 className="ml-card-title">Uploading statement…</h3>
+                <div className="ml-progress-track">
+                  <div className="ml-progress-fill" style={{ width: `${progress}%` }} />
+                </div>
+                <p className="ml-progress-pct">{progress}%</p>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              </>
+            )}
+
+            {/* Success */}
+            {isSuccess && (
+              <>
+                <div className="ml-icon-box success">
+                  <CheckCircle size={28} color="#6EE7B7" />
+                </div>
+                <h3 className="ml-card-title">Upload Complete!</h3>
+                <p className="ml-card-sub">Redirecting to your dashboard…</p>
+              </>
+            )}
+
+            {/* Error */}
+            {status === "error" && (
+              <>
+                <div className="ml-icon-box error">
+                  <AlertCircle size={28} color="#f87171" />
+                </div>
+                <h3 className="ml-card-title">Upload Failed</h3>
+                <p className="ml-card-sub" style={{ color: "rgba(248,113,113,0.7)" }}>{error}</p>
+                <button
+                  onClick={e => { e.stopPropagation(); clearFile(); }}
+                  className="ml-ghost-btn"
+                >
+                  Try Again
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* CTA */}
+          {status === "selected" && (
+            <>
+              {error && <p className="ml-error-text">{error}</p>}
               <button
-                onClick={e => { e.stopPropagation(); clearFile(); }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[#ececec] text-sm font-semibold text-[#6b7280] hover:bg-[#fafafa]"
+                onClick={handleUpload}
+                disabled={!bankName}
+                className="ml-btn-primary"
               >
-                <X className="w-4 h-4" /> Remove file
+                Analyse My Statement
               </button>
             </>
           )}
 
-          {/* Uploading */}
-          {isUploading && (
-            <>
-              <div className="w-20 h-20 rounded-[24px] bg-[#eef2ff] border border-[#dbe4ff] flex items-center justify-center mx-auto mb-6">
-                <Loader2 className="w-8 h-8 text-[#4f6ef7] animate-spin" />
-              </div>
-              <h3 className="text-xl font-bold text-[#111]">Uploading statement...</h3>
-              <div className="w-full h-2 bg-[#f3f4f6] rounded-full overflow-hidden mt-6">
-                <div className="h-full bg-gradient-to-r from-[#4f6ef7] to-[#7c3aed] transition-all duration-300" style={{ width: `${progress}%` }} />
-              </div>
-              <p className="text-sm text-[#9ca3af] mt-3">{progress}%</p>
-            </>
-          )}
-
-          {/* Success */}
           {isSuccess && (
-            <>
-              <div className="w-20 h-20 rounded-[24px] bg-green-50 border border-green-200 flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-8 h-8 text-green-500" />
-              </div>
-              <h3 className="text-xl font-bold text-[#111]">Upload Complete!</h3>
-              <p className="text-[#9ca3af] text-sm mt-3">Redirecting to dashboard...</p>
-            </>
-          )}
-
-          {/* Error */}
-          {status === "error" && (
-            <>
-              <div className="w-20 h-20 rounded-[24px] bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-6">
-                <AlertCircle className="w-8 h-8 text-red-500" />
-              </div>
-              <h3 className="text-xl font-bold text-[#111]">Upload Failed</h3>
-              <p className="text-red-500 text-sm mt-3 mb-6">{error}</p>
-              <button
-                onClick={e => { e.stopPropagation(); clearFile(); }}
-                className="px-5 py-2 rounded-xl border border-[#ececec] text-sm font-semibold text-[#6b7280] hover:bg-[#fafafa]"
-              >
-                Try Again
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Upload Button */}
-        {status === "selected" && (
-          <>
-            {error && <p className="text-red-500 text-sm text-center mt-3">{error}</p>}
-            <button
-              onClick={handleUpload}
-              disabled={!bankName}
-              className={`w-full mt-5 h-14 rounded-2xl text-white font-bold text-sm shadow-lg transition-all ${
-                bankName
-                  ? "bg-gradient-to-r from-[#4f6ef7] to-[#7c3aed] shadow-blue-500/20 hover:scale-[0.99] active:scale-[0.98]"
-                  : "bg-[#e5e7eb] cursor-not-allowed shadow-none"
-              }`}
-            >
-              Analyse My Statement
+            <button onClick={clearFile} className="ml-btn-outline">
+              Upload Another Statement
             </button>
-          </>
-        )}
+          )}
 
-        {/* Success button */}
-        {isSuccess && (
-          <button onClick={clearFile} className="w-full mt-5 h-14 rounded-2xl border border-[#ececec] bg-white text-[#374151] font-bold text-sm hover:bg-[#fafafa]">
-            Upload Another Statement
-          </button>
-        )}
-
-        {/* Trust badges */}
-        <div className="flex justify-center gap-5 flex-wrap mt-8">
-          {["256-bit encrypted","Deleted after 24h","Never shared"].map(t => (
-            <span key={t} className="text-xs text-[#9ca3af] flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />{t}
-            </span>
-          ))}
+          {/* Trust badges */}
+          <div className="ml-trust">
+            {["256-bit encrypted", "Deleted after 24h", "Never shared"].map(t => (
+              <span key={t} className="ml-trust-item">
+                <span className="ml-trust-dot" />
+                {t}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

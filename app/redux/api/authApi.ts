@@ -222,6 +222,10 @@ export const authApi = baseApi.injectEndpoints({
       query: (body) => ({ url: "/auth/login", method: "POST", body }),
     }),
 
+    getMe: builder.query({
+      query: () => ({ url: "/auth/me", method: "GET" }),
+    }),
+
     // ── Statements ────────────────────────────────────────────────────────────
     getStatementIds: builder.query<StatementIdWithBank[], void>({
       query: () => ({ url: "/statements/ids", method: "GET" }),
@@ -328,6 +332,7 @@ export const {
   useSignupMutation,
   useLoginMutation,
   useGetStatementIdsQuery,
+  useGetMeQuery,
   useGetStatementsQuery,
   useGetStatementByIdQuery,
   useUploadStatementMutation,
