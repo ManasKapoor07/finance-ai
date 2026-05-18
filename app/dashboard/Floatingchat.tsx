@@ -39,6 +39,23 @@ interface LocalMessage {
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
+const generateId() = () => {
+  try {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
+      return generateId();
+    }
+  } catch (err) {
+    console.error("UUID generation failed:", err);
+  }
+
+  return `msg_${Date.now()}_${Math.random()
+    .toString(36)
+    .substring(2, 9)}`;
+};
+
 function renderMarkdown(text: string) {
   return text.split("\n").map((line, li, arr) => (
     <span key={li}>
@@ -236,6 +253,7 @@ export default function FloatingChat() {
     useGetChatHistoryQuery(activeChatId!, { skip: !activeChatId });
 
   const [sendMessage] = useSendChatMessageMutation();
+  
 
   // ── Effects ────────────────────────────────────────────────────────────────
 
@@ -292,7 +310,7 @@ export default function FloatingChat() {
     setMessages((prev) => [
       ...prev,
       {
-        id:        crypto.randomUUID(),
+        id:        generateId(),
         role:      "USER" as const,
         content,
         createdAt: new Date().toISOString(),
@@ -338,7 +356,7 @@ export default function FloatingChat() {
       setMessages((prev) => [
         ...prev,
         {
-          id:            crypto.randomUUID(),
+          id:            generateId(),
           role:          "ASSISTANT" as const,
           content:       res.reply,
           createdAt:     new Date().toISOString(),
@@ -351,7 +369,7 @@ export default function FloatingChat() {
       setMessages((prev) => [
         ...prev,
         {
-          id:        crypto.randomUUID(),
+          id:        generateId(),
           role:      "ASSISTANT" as const,
           content:   "Something went wrong. Please try again.",
           createdAt: new Date().toISOString(),
@@ -378,7 +396,7 @@ export default function FloatingChat() {
     setMessages((prev) => [
       ...prev,
       {
-        id:          crypto.randomUUID(),
+        id:          generateId(),
         role:        "ASSISTANT" as const,
         content:     reply,
         createdAt:   new Date().toISOString(),
