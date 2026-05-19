@@ -136,7 +136,7 @@ export default function FeedbackPage() {
         <p className="text-white/40 text-sm mb-12">
           6 quick questions. No fluff — just what actually helps us build better.
         </p>
-      <FeedbackAnalyticsPage />
+      {/* <FeedbackAnalyticsPage /> */}
 
 
         {/* Q1 */}
