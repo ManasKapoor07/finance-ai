@@ -444,9 +444,9 @@ export default function AIInsightsPanel() {
           <div className="ai-score-ring">
             <ScoreRing score={score} />
             <div className="ai-score-ring-meta">
-              <Pill color={sc.fg}>{analysis.healthScore.label}</Pill>
+              <Pill color={sc.fg}>{ analysis?.healthScore?.label ?  analysis?.healthScore?.label : "N/A" }</Pill>
               <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-                Grade <strong style={{ color: sc.fg }}>{analysis.healthScore.grade}</strong>
+                Grade <strong style={{ color: sc.fg }}>{analysis?.healthScore?.grade}</strong>
               </p>
               <div style={{ width: 120 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.25)", marginBottom: 5 }}>

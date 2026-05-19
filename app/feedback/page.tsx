@@ -9,6 +9,7 @@ import {
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import PageLayout from "../components/PageLayout";
+import FeedbackAnalyticsPage from "./FeedbackAnalyticsPage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -135,6 +136,8 @@ export default function FeedbackPage() {
         <p className="text-white/40 text-sm mb-12">
           6 quick questions. No fluff — just what actually helps us build better.
         </p>
+      <FeedbackAnalyticsPage />
+
 
         {/* Q1 */}
         <Question num="01" label="What was your first impression of MoneyLens?">

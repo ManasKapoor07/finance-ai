@@ -379,7 +379,7 @@ function TransactionsTab({ categories = [] }: { categories?: string[] }) {
                 }))}
                 className={`db-filter-btn ${(params.type ?? "") === opt.val ? "active" : "inactive"}`}
               >
-                {opt.label}
+                {opt?.label}
               </button>
             ))}
           </div>
@@ -677,7 +677,7 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
                 {[{ color: "#6EE7B7", label: "Income" }, { color: "#f87171", label: "Spending" }].map(l => (
                   <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)" }}>
                     <span style={{ width: 14, height: 2.5, background: l.color, borderRadius: 99, display: "inline-block" }} />
-                    {l.label}
+                    {l?.label}
                   </div>
                 ))}
               </div>
