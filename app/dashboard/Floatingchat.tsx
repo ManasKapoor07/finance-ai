@@ -320,9 +320,31 @@ export default function FloatingChat() {
         createdAt: new Date().toISOString(), suggestedGoal: res.suggestedGoal ?? null,
         createdPlan: res.createdPlan ?? null, chatId: resolvedChatId,
       }]);
-    } catch {
-      setMessages(prev => [...prev, { id: generateId(), role: "ASSISTANT" as const, content: "Something went wrong. Please try again.", createdAt: new Date().toISOString(), chatId: chatIdRef.current ?? "" }]);
-    } finally {
+    } catch (err: any) {
+
+  const errorData = err?.data || err?.response?.data;
+
+  let message = "Something went wrong. Please try again.";
+
+  if (errorData?.error === "DAILY_LIMIT_EXCEEDED") {
+    message = "DAILY LIMIT EXCEEDED - Reset at midnight UTC. ";
+  }
+
+  if (errorData?.error === "PREMIUM_REQUIRED") {
+    message = "PREMIUM REQUIRED";
+  }
+
+  setMessages(prev => [
+    ...prev,
+    {
+      id: generateId(),
+      role: "ASSISTANT" as const,
+      content: message,
+      createdAt: new Date().toISOString(),
+      chatId: chatIdRef.current ?? "",
+    },
+  ]);
+} finally {
       setIsTyping(false);
     }
   }, [input, isTyping, sendMessage, refetchList]);

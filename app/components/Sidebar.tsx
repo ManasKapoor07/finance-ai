@@ -178,9 +178,10 @@ export default function Sidebar({
               <p className="truncate text-[11px] text-white/35">{userEmail}</p>
             </div>
             <button
+
               onClick={handleLogout}
               title="Logout"
-              className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/35 transition-all duration-200 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+              className="group flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/35 transition-all duration-200 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
             >
               <IconLogout />
             </button>

@@ -1,13 +1,4 @@
-/**
- * onboardingApi.ts
- *
- * Inject into baseApi (same pattern as authApi).
- * NOTE: The backend serves these under /api, NOT /api/v1.
- * We handle this with an absolute-path override on each query.
- *
- * Usage:
- *   import { useGetOnboardingProfileQuery, ... } from "./onboardingApi";
- */
+
 
 import { baseApi } from "./baseApi";
 
