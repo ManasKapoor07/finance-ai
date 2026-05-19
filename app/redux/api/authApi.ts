@@ -66,6 +66,11 @@ export interface SuggestedGoalDto {
   targetDate: string | null;
 }
 
+export interface AIAnalysisEnvelope {
+  isStale:  boolean;
+  analysis: AIAnalysisResponse;
+}
+
 export interface WeekTaskDto {
   id: string;
   weekNumber: number;
@@ -249,7 +254,7 @@ export const authApi = baseApi.injectEndpoints({
         if (bankName) form.append("bankName", bankName);
         return { url: "/statements/upload", method: "POST", body: form };
       },
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: ["Dashboard" , "Clarifications", "AIAnalysis" , "Onboarding"],
     }),
 
     // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -316,15 +321,17 @@ export const authApi = baseApi.injectEndpoints({
       providesTags: ["Chat"],
     }),
 
-    getAIAnalysis: builder.query<AIAnalysisResponse, void>({
-        query: () => "/ai/analysis",
-        providesTags: ["AIAnalysis"],
-}),
- 
-      refreshAIAnalysis: builder.mutation<AIAnalysisResponse, void>({
-        query: () => ({ url: "/ai/analysis/refresh", method: "POST" }),
-        invalidatesTags: ["AIAnalysis"],
-      }),
+    getAIAnalysis: builder.query<AIAnalysisEnvelope, void>({
+      query: () => ({ url: "/ai/analysis", method: "GET" }),
+      transformResponse: (response: any) => response.data ?? response,
+      providesTags: ["AIAnalysis"],
+    }),
+    
+    refreshAIAnalysis: builder.mutation<AIAnalysisEnvelope, void>({
+      query: () => ({ url: "/ai/analysis/refresh", method: "POST" }),
+      transformResponse: (response: any) => response.data ?? response,
+      invalidatesTags: ["AIAnalysis"],
+    }),
   }),
 });
 

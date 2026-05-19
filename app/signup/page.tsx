@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useSignupMutation } from "../redux/api/authApi";
 import toast from "react-hot-toast";
@@ -20,7 +20,7 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const res: any = await signup(formData).unwrap();
+      await signup(formData).unwrap();
       toast.success("Account created successfully!");
       setTimeout(() => { router.push("/login"); }, 1200);
     } catch (error: any) {
@@ -32,6 +32,8 @@ export default function SignupPage() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; }
 
         .ml-auth-root {
           min-height: 100vh;
@@ -85,12 +87,36 @@ export default function SignupPage() {
           max-width: 440px;
         }
 
+        /* ── Back button ── */
+        .ml-back {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          background: transparent;
+          border: 0.5px solid rgba(255,255,255,0.1);
+          border-radius: 99px;
+          padding: 7px 14px 7px 10px;
+          color: rgba(255,255,255,0.45);
+          font-size: 12px;
+          font-weight: 600;
+          font-family: 'DM Sans', sans-serif;
+          cursor: pointer;
+          text-decoration: none;
+          margin-bottom: 24px;
+          transition: color 0.2s, border-color 0.2s, background 0.2s;
+        }
+        .ml-back:hover {
+          color: rgba(255,255,255,0.85);
+          border-color: rgba(255,255,255,0.22);
+          background: rgba(255,255,255,0.04);
+        }
+
         .ml-logo {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 12px;
-          margin-bottom: 32px;
+          margin-bottom: 28px;
         }
 
         .ml-logo-icon {
@@ -115,12 +141,13 @@ export default function SignupPage() {
           color: #fff;
           letter-spacing: -0.03em;
           line-height: 1;
+          margin: 0;
         }
 
         .ml-logo-text p {
           font-size: 11px;
           color: rgba(255,255,255,0.3);
-          margin-top: 3px;
+          margin: 3px 0 0;
         }
 
         .ml-card {
@@ -147,24 +174,24 @@ export default function SignupPage() {
           letter-spacing: 0.16em;
           text-transform: uppercase;
           color: #6EE7B7;
-          margin-bottom: 10px;
+          margin: 0 0 10px;
         }
 
         .ml-heading {
           font-family: 'Bricolage Grotesque', sans-serif;
-          font-size: 34px;
+          font-size: clamp(26px, 7vw, 34px);
           font-weight: 800;
           color: #fff;
           letter-spacing: -0.04em;
           line-height: 1.05;
-          margin-bottom: 12px;
+          margin: 0 0 12px;
         }
 
         .ml-subtext {
           font-size: 13px;
           color: rgba(255,255,255,0.38);
           line-height: 1.65;
-          margin-bottom: 28px;
+          margin: 0 0 28px;
         }
 
         .ml-form {
@@ -206,6 +233,7 @@ export default function SignupPage() {
 
         .ml-field input {
           flex: 1;
+          min-width: 0;
           background: transparent;
           border: none;
           outline: none;
@@ -226,6 +254,7 @@ export default function SignupPage() {
           display: flex;
           align-items: center;
           padding: 0;
+          flex-shrink: 0;
           transition: color 0.2s;
         }
 
@@ -325,6 +354,20 @@ export default function SignupPage() {
         .ml-footer a:hover {
           color: #34d399;
         }
+
+        @media (max-width: 480px) {
+          .ml-auth-root {
+            padding: 24px 12px;
+            align-items: flex-start;
+          }
+          .ml-card {
+            padding: 24px 20px 24px;
+            border-radius: 22px;
+          }
+          .ml-logo {
+            margin-bottom: 20px;
+          }
+        }
       `}</style>
 
       <div className="ml-auth-root">
@@ -333,6 +376,12 @@ export default function SignupPage() {
         <div className="ml-glow-bottom" />
 
         <div className="ml-auth-inner">
+          {/* Back to landing */}
+          <Link href="/" className="ml-back">
+            <ArrowLeft size={14} />
+            Back to home
+          </Link>
+
           {/* Logo */}
           <div className="ml-logo">
             <div className="ml-logo-icon">M</div>
@@ -351,7 +400,6 @@ export default function SignupPage() {
             </p>
 
             <form onSubmit={handleSubmit} className="ml-form">
-              {/* Full Name */}
               <div className="ml-field-group">
                 <label>Full Name</label>
                 <div className="ml-field">
@@ -367,7 +415,6 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Email */}
               <div className="ml-field-group">
                 <label>Email Address</label>
                 <div className="ml-field">
@@ -383,7 +430,6 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Password */}
               <div className="ml-field-group">
                 <label>Password</label>
                 <div className="ml-field">
@@ -396,33 +442,23 @@ export default function SignupPage() {
                     placeholder="••••••••"
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                 </div>
               </div>
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="ml-btn-primary"
-              >
+              <button type="submit" disabled={isLoading} className="ml-btn-primary">
                 {isLoading ? "Creating Account..." : "Create Account"}
               </button>
             </form>
 
-            {/* Divider */}
-            <div className="ml-divider" style={{ marginTop: "20px" }}>
+            {/* <div className="ml-divider" style={{ marginTop: "20px" }}>
               <div className="ml-divider-line" />
               <span>OR</span>
               <div className="ml-divider-line" />
             </div>
 
-            {/* Google */}
             <button className="ml-btn-google">
               <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
                 <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="rgba(255,255,255,0.5)" />
@@ -431,9 +467,8 @@ export default function SignupPage() {
                 <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="rgba(255,255,255,0.45)" />
               </svg>
               Continue with Google
-            </button>
+            </button> */}
 
-            {/* Footer */}
             <p className="ml-footer">
               Already have an account?
               <Link href="/login">Login</Link>

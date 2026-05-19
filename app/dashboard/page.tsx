@@ -21,6 +21,8 @@ import {
 import AIInsightsPanel from "./Aiinsightspanel";
 import PageLayout from "../components/PageLayout";
 import FloatingChat from "./Floatingchat";
+import OnboardingModal from "../components/OnboardingModal";
+import ClarificationCards from "../components/ClarificationCards";
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
@@ -93,11 +95,27 @@ const GLOBAL_STYLES = `
     text-transform: uppercase; color: rgba(255,255,255,0.28); margin-bottom: 16px;
   }
 
+  /* ── Tabs: scrollable on mobile ── */
+  .db-tab-bar {
+    display: flex; align-items: center; gap: 4;
+    padding: 6px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 16px;
+    width: fit-content;
+    max-width: 100%;
+    border: 0.5px solid rgba(255,255,255,0.08);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .db-tab-bar::-webkit-scrollbar { display: none; }
+
   .db-tab-btn {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 18px; border-radius: 12px; border: none;
+    padding: 8px 16px; border-radius: 12px; border: none;
     font-size: 13px; font-weight: 700; cursor: pointer;
     transition: all 0.2s; font-family: 'DM Sans', sans-serif;
+    white-space: nowrap; flex-shrink: 0;
   }
   .db-tab-btn.active {
     background: linear-gradient(135deg, #6EE7B7, #22d3ee);
@@ -126,17 +144,31 @@ const GLOBAL_STYLES = `
   }
   @keyframes db-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
+  /* ── Filter bar: wrap on mobile ── */
+  .db-filter-row {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+
   .db-filter-btn {
-    padding: 6px 16px; border-radius: 99px; border: none;
+    padding: 6px 14px; border-radius: 99px; border: none;
     font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'DM Sans', sans-serif; white-space: nowrap;
   }
   .db-filter-btn.active { background: linear-gradient(135deg,#6EE7B7,#22d3ee); color: #080B14; }
   .db-filter-btn.inactive { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.45); }
   .db-filter-btn.inactive:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
 
+  /* ── Category pills: horizontal scroll on mobile ── */
+  .db-cat-scroll {
+    display: flex; gap: 8px; align-items: center;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding-bottom: 2px;
+  }
+  .db-cat-scroll::-webkit-scrollbar { display: none; }
+  .db-cat-scroll .db-filter-btn { flex-shrink: 0; }
+
   .db-page-btn {
-    font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 99px; border: none;
+    font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 99px; border: none;
     background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: pointer;
     transition: all 0.15s; font-family: 'DM Sans', sans-serif;
   }
@@ -157,17 +189,101 @@ const GLOBAL_STYLES = `
   .db-view-all {
     font-size: 11px; font-weight: 700; color: #6EE7B7; background: none; border: none;
     cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: 'DM Sans', sans-serif;
-    transition: color 0.15s;
+    transition: color 0.15s; white-space: nowrap;
   }
   .db-view-all:hover { color: #34d399; }
 
   .db-stat-card {
     position: relative; overflow: hidden; border-radius: 20px;
-    padding: 20px; display: flex; flex-direction: column; gap: 8px;
+    padding: 18px 20px; display: flex; flex-direction: column; gap: 8px;
     border: 0.5px solid rgba(255,255,255,0.09);
     transition: transform 0.2s; cursor: default;
   }
   .db-stat-card:hover { transform: translateY(-2px); }
+
+  /* ── Stat grid: 2 col on mobile → 4 on desktop ── */
+  .db-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  @media (min-width: 900px) {
+    .db-stat-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  /* ── Two-column grid: stacked on mobile → side-by-side on desktop ── */
+  .db-2col-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 900px) {
+    .db-2col-grid { grid-template-columns: 2fr 1fr; }
+  }
+
+  /* ── Equal two-column grid: stacked on mobile ── */
+  .db-2col-equal {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 900px) {
+    .db-2col-equal { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── Statements grid ── */
+  .db-statements-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 540px) {
+    .db-statements-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 900px) {
+    .db-statements-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* ── Heading responsive sizes ── */
+  .db-heading {
+    font-family: 'Bricolage Grotesque', 'DM Sans', sans-serif;
+    font-size: clamp(22px, 5vw, 32px);
+    font-weight: 800; color: #fff;
+    letter-spacing: -0.03em; line-height: 1.1; margin: 0;
+  }
+
+  /* ── Reduce inner padding on small screens ── */
+  @media (max-width: 480px) {
+    .db-card-pad { padding: 16px !important; }
+    .db-stat-card { padding: 14px 16px !important; }
+    .db-stat-card p[style*="font-size: 26"] { font-size: 20px !important; }
+  }
+
+  /* ── Sort row on mobile: stack type filters + sort below ── */
+  .db-sort-row {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  .db-sort-right {
+    display: flex; align-items: center; gap: 10px; margin-left: auto;
+  }
+  @media (max-width: 480px) {
+    .db-sort-right { margin-left: 0; width: 100%; justify-content: space-between; }
+  }
+
+  /* ── TX amount: don't overflow on mobile ── */
+  .db-tx-amount {
+    font-size: 13px; font-weight: 800; flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Recurring summary row: stack on very small screens ── */
+  .db-recurring-summary {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 16px; padding: 12px 16px;
+    background: rgba(110,231,183,0.07); border-radius: 14px;
+    border: 0.5px solid rgba(110,231,183,0.15);
+    flex-wrap: wrap;
+  }
 
   .recharts-tooltip-wrapper .recharts-default-tooltip {
     background: rgba(8,11,20,0.92) !important;
@@ -215,7 +331,7 @@ function StatCard({ label, value, change, gradient, emoji }: {
     <div className="db-stat-card" style={{ background: gradient }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{label}</span>
-        <span style={{ fontSize: 20 }}>{emoji}</span>
+        <span style={{ fontSize: 18 }}>{emoji}</span>
       </div>
       <p style={{ fontSize: 26, fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1, letterSpacing: "-0.02em" }}>{value}</p>
       {change !== undefined && (
@@ -228,43 +344,112 @@ function StatCard({ label, value, change, gradient, emoji }: {
 }
 
 // ── Transactions Tab ──────────────────────────────────────────────────────────
-function TransactionsTab() {
-  const [params, setParams] = useState<TransactionQueryParams>({ page: 0, size: 20, sort: "date", dir: "desc" });
+function TransactionsTab({ categories = [] }: { categories?: string[] }) {
+  const [params, setParams] = useState<TransactionQueryParams>({
+    page: 0, size: 20, sort: "date", dir: "desc",
+  });
   const { data, isLoading, isFetching } = useGetTransactionsQuery(params);
   const txList = data?.content ?? [];
   const totalPages = data?.totalPages ?? 1;
+
   const set = (key: keyof TransactionQueryParams, val: any) =>
     setParams(p => ({ ...p, [key]: val, page: 0 }));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }} className="db-animate">
-      {/* Filter bar */}
-      <div className="db-card" style={{ padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-        {[{ val: "", label: "All" }, { val: "DEBIT", label: "Debits" }, { val: "CREDIT", label: "Credits" }].map(opt => (
-          <button key={opt.val} onClick={() => set("type", opt.val || undefined)}
-            className={`db-filter-btn ${(params.type ?? "") === opt.val ? "active" : "inactive"}`}>
-            {opt.label}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <select className="db-select" value={params.dir} onChange={e => set("dir", e.target.value)}>
-            <option value="desc">Newest</option>
-            <option value="asc">Oldest</option>
-          </select>
-          {data && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{data.totalElements.toLocaleString()} total</span>}
+
+      {/* ── Filter bar ── */}
+      <div className="db-card db-card-pad" style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+
+        {/* Row 1: type filters + sort */}
+        <div className="db-sort-row">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {[
+              { val: "",       label: "All"     },
+              { val: "DEBIT",  label: "Debits"  },
+              { val: "CREDIT", label: "Credits" },
+            ].map(opt => (
+              <button
+                key={opt.val}
+                onClick={() => setParams(p => ({
+                  ...p,
+                  type: opt.val || undefined,
+                  category: opt.val === "CREDIT" ? undefined : p.category,
+                  page: 0,
+                }))}
+                className={`db-filter-btn ${(params.type ?? "") === opt.val ? "active" : "inactive"}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="db-sort-right">
+            <select
+              className="db-select"
+              value={params.dir}
+              onChange={e => set("dir", e.target.value)}
+            >
+              <option value="desc">Newest</option>
+              <option value="asc">Oldest</option>
+            </select>
+            {data && (
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 600, whiteSpace: "nowrap" }}>
+                {data.totalElements.toLocaleString()} total
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Row 2: category pills — horizontally scrollable on mobile */}
+        {categories.length > 0 && params.type !== "CREDIT" && (
+          <div>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
+              color: "rgba(255,255,255,0.25)", display: "block", marginBottom: 8,
+            }}>
+              CATEGORY
+            </span>
+            <div className="db-cat-scroll">
+              <button
+                onClick={() => set("category", undefined)}
+                className={`db-filter-btn ${!params.category ? "active" : "inactive"}`}
+                style={{ fontSize: 11 }}
+              >
+                All
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => set("category", params.category === cat ? undefined : cat)}
+                  className={`db-filter-btn ${params.category === cat ? "active" : "inactive"}`}
+                  style={{ fontSize: 11 }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* List */}
+      {/* ── Transaction list ── */}
       <div className="db-card" style={{ overflow: "hidden" }}>
         <div>
           {isLoading || isFetching
             ? [...Array(7)].map((_, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.05)" }}>
-                  <Skeleton style={{ width: 40, height: 40, borderRadius: 12 }} />
+                <div
+                  key={i}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "14px 20px",
+                    borderBottom: "0.5px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <Skeleton style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0 }} />
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
-                    <Skeleton style={{ height: 12, width: 180 }} />
-                    <Skeleton style={{ height: 10, width: 100 }} />
+                    <Skeleton style={{ height: 12, width: "60%" }} />
+                    <Skeleton style={{ height: 10, width: "40%" }} />
                   </div>
                   <Skeleton style={{ height: 14, width: 70 }} />
                 </div>
@@ -274,36 +459,78 @@ function TransactionsTab() {
             : txList.map((tx: TransactionDto) => {
                 const isDebit = tx.type === "DEBIT";
                 return (
-                  <div key={tx.id} className="db-tx-row" style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px" }}>
+                  <div
+                    key={tx.id}
+                    className="db-tx-row"
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}
+                  >
+                    {/* Icon */}
                     <div style={{
-                      width: 40, height: 40, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 16, fontWeight: 800, flexShrink: 0,
+                      width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 15, fontWeight: 800,
                       background: isDebit ? "rgba(248,113,113,0.1)" : "rgba(110,231,183,0.1)",
-                      color: isDebit ? "#f87171" : "#6EE7B7",
+                      color:      isDebit ? "#f87171"               : "#6EE7B7",
                       border: `0.5px solid ${isDebit ? "rgba(248,113,113,0.2)" : "rgba(110,231,183,0.2)"}`,
                     }}>
                       {isDebit ? "↓" : "↑"}
                     </div>
+
+                    {/* Description + meta */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description}</p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.28)" }}>{fmtShortDate(tx.date)}</span>
-                        {tx.category && <span className="db-pill db-pill-cyan">{tx.category}</span>}
+                      <p style={{
+                        fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)",
+                        margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {tx.description}
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.28)" }}>
+                          {fmtShortDate(tx.date)}
+                        </span>
+                        {tx.category && (
+                          <span className="db-pill db-pill-cyan">{tx.category}</span>
+                        )}
+                        {tx.subCategory && (
+                          <span className="db-pill db-pill-blue">{tx.subCategory}</span>
+                        )}
                       </div>
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: isDebit ? "#f87171" : "#6EE7B7", fontVariantNumeric: "tabular-nums" }}>
-                      {isDebit ? "−" : "+"}{fmt(Number(tx.amount))}
+
+                    {/* Amount */}
+                    <span className="db-tx-amount" style={{ color: isDebit ? "#f87171" : "#6EE7B7" }}>
+                      {isDebit ? "−" : "+"}{fmtCompact(Number(tx.amount))}
                     </span>
                   </div>
                 );
               })}
         </div>
 
+        {/* ── Pagination ── */}
         {totalPages > 1 && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderTop: "0.5px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
-            <button disabled={params.page === 0} onClick={() => setParams(p => ({ ...p, page: (p.page ?? 0) - 1 }))} className="db-page-btn">← Prev</button>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontWeight: 600 }}>{(params.page ?? 0) + 1} / {totalPages}</span>
-            <button disabled={(params.page ?? 0) + 1 >= totalPages} onClick={() => setParams(p => ({ ...p, page: (p.page ?? 0) + 1 }))} className="db-page-btn">Next →</button>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 16px",
+            borderTop: "0.5px solid rgba(255,255,255,0.06)",
+            background: "rgba(255,255,255,0.02)",
+          }}>
+            <button
+              disabled={params.page === 0}
+              onClick={() => setParams(p => ({ ...p, page: (p.page ?? 0) - 1 }))}
+              className="db-page-btn"
+            >
+              ← Prev
+            </button>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", fontWeight: 600 }}>
+              {(params.page ?? 0) + 1} / {totalPages}
+            </span>
+            <button
+              disabled={(params.page ?? 0) + 1 >= totalPages}
+              onClick={() => setParams(p => ({ ...p, page: (p.page ?? 0) + 1 }))}
+              className="db-page-btn"
+            >
+              Next →
+            </button>
           </div>
         )}
       </div>
@@ -315,14 +542,14 @@ function TransactionsTab() {
 function StatementsTab() {
   const { data: statements, isLoading } = useGetStatementsQuery();
   if (isLoading) return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+    <div className="db-statements-grid">
       {[...Array(3)].map((_, i) => <Skeleton key={i} style={{ height: 220, borderRadius: 20 }} />)}
     </div>
   );
   if (!statements?.length) return <Empty icon="📂" text="No statements uploaded yet" />;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }} className="db-animate">
+    <div className="db-statements-grid db-animate">
       {statements.map((s: StatementDetailDto, i: number) => (
         <div key={s.id} className="db-card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 16, transition: "transform 0.2s" }}
           onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
@@ -393,10 +620,10 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
   if (isLoading && !dashboard) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div className="db-stat-grid">
           {[...Array(4)].map((_, i) => <Skeleton key={i} style={{ height: 110, borderRadius: 20 }} />)}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
+        <div className="db-2col-grid">
           <Skeleton style={{ height: 280, borderRadius: 20 }} />
           <Skeleton style={{ height: 280, borderRadius: 20 }} />
         </div>
@@ -406,25 +633,23 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }} className="db-animate">
+      <ClarificationCards />
+
       {/* Stat Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}
-        className="db-stat-grid">
-        <style>{`@media(min-width:900px){.db-stat-grid{grid-template-columns:repeat(4,1fr)!important}}`}</style>
-        <StatCard label="Balance"  value={fmt(Number(dashboard?.totalBalance ?? 0))}  change={dashboard?.balanceChangePercent}
+      <div className="db-stat-grid">
+        <StatCard label="Balance"  value={fmt(Number(dashboard?.totalBalance ?? 0))}  
           gradient="linear-gradient(135deg, rgba(110,231,183,0.12) 0%, rgba(110,231,183,0.04) 100%)" emoji="💚" />
-        <StatCard label="Income"   value={fmt(Number(dashboard?.totalIncome ?? 0))}   change={dashboard?.incomeChangePercent}
+        <StatCard label="Income"   value={fmt(Number(dashboard?.totalIncome ?? 0))}   
           gradient="linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(59,130,246,0.04) 100%)" emoji="💙" />
-        <StatCard label="Spending" value={fmt(Number(dashboard?.totalSpending ?? 0))} change={dashboard?.spendingChangePercent}
+        <StatCard label="Spending" value={fmt(Number(dashboard?.totalSpending ?? 0))} 
           gradient="linear-gradient(135deg, rgba(248,113,113,0.12) 0%, rgba(248,113,113,0.04) 100%)" emoji="🔴" />
         <StatCard label="Savings"  value={fmt(Number(dashboard?.savings ?? 0))}
           gradient="linear-gradient(135deg, rgba(34,211,238,0.12) 0%, rgba(34,211,238,0.04) 100%)" emoji="🩵" />
       </div>
 
       {/* Monthly + Category */}
-      <div style={{ display: "grid", gap: 14 }} className="db-2col-grid">
-        <style>{`@media(min-width:900px){.db-2col-grid{grid-template-columns:2fr 1fr!important}}`}</style>
-
-        <div className="db-card" style={{ padding: "22px 24px" }}>
+      <div className="db-2col-grid">
+        <div className="db-card db-card-pad" style={{ padding: "22px 24px" }}>
           <p className="db-section-label">Monthly Overview</p>
           {monthlyData.length === 0 ? <Empty icon="📈" text="No monthly data" /> : (
             <>
@@ -460,7 +685,7 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
           )}
         </div>
 
-        <div className="db-card" style={{ padding: "22px 24px" }}>
+        <div className="db-card db-card-pad" style={{ padding: "22px 24px" }}>
           <p className="db-section-label">By Category</p>
           {categories.length === 0 ? <Empty icon="🏷️" text="No data" /> : (
             <>
@@ -490,7 +715,7 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
 
       {/* Weekly Spend */}
       {weeklyChartData.length > 0 && (
-        <div className="db-card" style={{ padding: "22px 24px" }}>
+        <div className="db-card db-card-pad" style={{ padding: "22px 24px" }}>
           <p className="db-section-label">Weekly Spend</p>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={weeklyChartData} barGap={4} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
@@ -513,18 +738,18 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
         </div>
       )}
 
-      {/* Recurring + Recent */}
-      <div style={{ display: "grid", gap: 14 }} className="db-2col-grid">
+      {/* Recurring + Recent — equal columns, stacked on mobile */}
+      <div className="db-2col-equal">
 
         {/* Recurring */}
-        <div className="db-card" style={{ padding: "22px 24px" }}>
+        <div className="db-card db-card-pad" style={{ padding: "22px 24px" }}>
           <p className="db-section-label">Recurring Charges</p>
           {recurringLoading
             ? [...Array(4)].map((_, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "0.5px solid rgba(255,255,255,0.05)" }}>
                   <Skeleton style={{ width: 38, height: 38, borderRadius: 12 }} />
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                    <Skeleton style={{ height: 11, width: 130 }} /><Skeleton style={{ height: 9, width: 80 }} />
+                    <Skeleton style={{ height: 11, width: "60%" }} /><Skeleton style={{ height: 9, width: "40%" }} />
                   </div>
                   <Skeleton style={{ height: 12, width: 60 }} />
                 </div>
@@ -532,7 +757,7 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
             : recurringList.length === 0 ? <Empty icon="🔁" text="No recurring charges" />
             : (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16, padding: "12px 16px", background: "rgba(110,231,183,0.07)", borderRadius: 14, border: "0.5px solid rgba(110,231,183,0.15)" }}>
+                <div className="db-recurring-summary">
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: 0, fontSize: 10, color: "rgba(110,231,183,0.6)", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em" }}>Est. Monthly</p>
                     <p style={{ margin: "3px 0 0", fontSize: 20, fontWeight: 900, color: "#6EE7B7" }}>
@@ -556,14 +781,14 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.merchant}</p>
-                      <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
+                      <div style={{ display: "flex", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 10, color: "rgba(255,255,255,0.28)" }}>{c.occurrences}× seen</span>
                         {c.category && <span className="db-pill db-pill-cyan">{c.category}</span>}
                       </div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: 0 }}>{fmt(Number(c.avgAmount))}</p>
-                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", margin: "2px 0 0" }}>avg / charge</p>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: 0 }}>{fmtCompact(Number(c.avgAmount))}</p>
+                      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", margin: "2px 0 0" }}>avg</p>
                     </div>
                   </div>
                 ))}
@@ -573,7 +798,7 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
         </div>
 
         {/* Recent Transactions */}
-        <div className="db-card" style={{ padding: "22px 24px" }}>
+        <div className="db-card db-card-pad" style={{ padding: "22px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <p className="db-section-label" style={{ marginBottom: 0 }}>Recent Transactions</p>
             <button className="db-view-all" onClick={onViewAllTransactions}>View all <span>→</span></button>
@@ -584,7 +809,7 @@ function OverviewTab({ dashboard, weeklyData, isLoading, onViewAllTransactions }
               return (
                 <div key={tx.id} className="db-tx-row" style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
                   <div style={{
-                    width: 38, height: 38, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
+                    width: 36, height: 36, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 14, fontWeight: 800, flexShrink: 0,
                     background: isDebit ? "rgba(248,113,113,0.1)" : "rgba(110,231,183,0.1)",
                     color: isDebit ? "#f87171" : "#6EE7B7",
@@ -621,7 +846,7 @@ export default function DashboardPage() {
 
   if (isError && !dashboard) {
     return (
-      <div style={{ minHeight: "100vh", background: "#080B14", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", background: "#080B14", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>
         <style>{GLOBAL_STYLES}</style>
         <div className="db-grid-bg" /><div className="db-glow-1" /><div className="db-glow-2" />
         <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
@@ -644,19 +869,20 @@ export default function DashboardPage() {
 
   return (
     <PageLayout>
+      <OnboardingModal />
       <style>{GLOBAL_STYLES}</style>
       <div className="db-root" style={{ minHeight: "100vh", background: "#080B14", fontFamily: "DM Sans, sans-serif" }}>
         <div className="db-grid-bg" /><div className="db-glow-1" /><div className="db-glow-2" />
 
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 24px 64px" }}>
+          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px 80px" }}>
 
             {/* Heading */}
-            <div style={{ marginBottom: 28 }}>
+            <div style={{ marginBottom: 24 }}>
               <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#6EE7B7", marginBottom: 8 }}>
                 Financial Dashboard
               </p>
-              <h1 style={{ fontFamily: "Bricolage Grotesque, DM Sans, sans-serif", fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1.1, margin: 0 }}>
+              <h1 className="db-heading">
                 Your finances,{" "}
                 <span style={{ backgroundImage: "linear-gradient(135deg, #6EE7B7, #3B82F6, #22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                   all in one place.
@@ -664,8 +890,8 @@ export default function DashboardPage() {
               </h1>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 24, padding: 6, background: "rgba(255,255,255,0.04)", borderRadius: 16, width: "fit-content", border: "0.5px solid rgba(255,255,255,0.08)" }}>
+            {/* Tabs — scrollable bar */}
+            <div className="db-tab-bar" style={{ marginBottom: 24 }}>
               {TABS.map(t => (
                 <button key={t.key} onClick={() => setActiveTab(t.key)}
                   className={`db-tab-btn ${activeTab === t.key ? "active" : "inactive"}`}>
@@ -679,7 +905,9 @@ export default function DashboardPage() {
             {activeTab === "overview" && (
               <OverviewTab dashboard={dashboard} weeklyData={weeklyData} isLoading={isLoading} onViewAllTransactions={() => setActiveTab("transactions")} />
             )}
-            {activeTab === "transactions" && <TransactionsTab />}
+            {activeTab === "transactions" && (
+              <TransactionsTab categories={Object.keys(dashboard?.spendingByCategory ?? {})} />
+            )}
             {activeTab === "statements" && <StatementsTab />}
           </div>
         </div>

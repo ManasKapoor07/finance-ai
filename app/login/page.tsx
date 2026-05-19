@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useLoginMutation } from "../redux/api/authApi";
 import toast from "react-hot-toast";
@@ -24,11 +24,7 @@ export default function LoginPage() {
       if (res?.data) {
         toast.success("Login Successful!");
         localStorage.setItem("access_token", res.data?.data?.accessToken);
-        router.push(
-          res.data.data.user.hasStatement
-            ? `/dashboard`
-            : "/upload"
-        );
+        router.push(res.data.data.user.hasStatement ? `/dashboard` : "/upload");
       }
     } catch (error) {
       toast.error("Login failed");
@@ -39,6 +35,8 @@ export default function LoginPage() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; }
 
         .ml-auth-root {
           min-height: 100vh;
@@ -92,13 +90,36 @@ export default function LoginPage() {
           max-width: 440px;
         }
 
-        /* Logo */
+        /* ── Back button ── */
+        .ml-back {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          background: transparent;
+          border: 0.5px solid rgba(255,255,255,0.1);
+          border-radius: 99px;
+          padding: 7px 14px 7px 10px;
+          color: rgba(255,255,255,0.45);
+          font-size: 12px;
+          font-weight: 600;
+          font-family: 'DM Sans', sans-serif;
+          cursor: pointer;
+          text-decoration: none;
+          margin-bottom: 24px;
+          transition: color 0.2s, border-color 0.2s, background 0.2s;
+        }
+        .ml-back:hover {
+          color: rgba(255,255,255,0.85);
+          border-color: rgba(255,255,255,0.22);
+          background: rgba(255,255,255,0.04);
+        }
+
         .ml-logo {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 12px;
-          margin-bottom: 32px;
+          margin-bottom: 28px;
         }
 
         .ml-logo-icon {
@@ -123,15 +144,15 @@ export default function LoginPage() {
           color: #fff;
           letter-spacing: -0.03em;
           line-height: 1;
+          margin: 0;
         }
 
         .ml-logo-text p {
           font-size: 11px;
           color: rgba(255,255,255,0.3);
-          margin-top: 3px;
+          margin: 3px 0 0;
         }
 
-        /* Card */
         .ml-card {
           background: rgba(255,255,255,0.04);
           border: 0.5px solid rgba(255,255,255,0.09);
@@ -150,34 +171,32 @@ export default function LoginPage() {
           pointer-events: none;
         }
 
-        /* Heading */
         .ml-eyebrow {
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.16em;
           text-transform: uppercase;
           color: #6EE7B7;
-          margin-bottom: 10px;
+          margin: 0 0 10px;
         }
 
         .ml-heading {
           font-family: 'Bricolage Grotesque', sans-serif;
-          font-size: 34px;
+          font-size: clamp(26px, 7vw, 34px);
           font-weight: 800;
           color: #fff;
           letter-spacing: -0.04em;
           line-height: 1.05;
-          margin-bottom: 12px;
+          margin: 0 0 12px;
         }
 
         .ml-subtext {
           font-size: 13px;
           color: rgba(255,255,255,0.38);
           line-height: 1.65;
-          margin-bottom: 28px;
+          margin: 0 0 28px;
         }
 
-        /* Form fields */
         .ml-form {
           display: flex;
           flex-direction: column;
@@ -217,6 +236,7 @@ export default function LoginPage() {
 
         .ml-field input {
           flex: 1;
+          min-width: 0;
           background: transparent;
           border: none;
           outline: none;
@@ -237,6 +257,7 @@ export default function LoginPage() {
           display: flex;
           align-items: center;
           padding: 0;
+          flex-shrink: 0;
           transition: color 0.2s;
         }
 
@@ -259,13 +280,13 @@ export default function LoginPage() {
           cursor: pointer;
           font-family: 'DM Sans', sans-serif;
           transition: color 0.2s;
+          padding: 0;
         }
 
         .ml-forgot button:hover {
           color: #34d399;
         }
 
-        /* Submit */
         .ml-btn-primary {
           width: 100%;
           height: 52px;
@@ -296,7 +317,6 @@ export default function LoginPage() {
           cursor: not-allowed;
         }
 
-        /* Divider */
         .ml-divider {
           display: flex;
           align-items: center;
@@ -316,7 +336,6 @@ export default function LoginPage() {
           font-weight: 500;
         }
 
-        /* Google */
         .ml-btn-google {
           width: 100%;
           height: 52px;
@@ -341,7 +360,6 @@ export default function LoginPage() {
           color: rgba(255,255,255,0.8);
         }
 
-        /* Footer */
         .ml-footer {
           text-align: center;
           font-size: 13px;
@@ -360,6 +378,20 @@ export default function LoginPage() {
         .ml-footer a:hover {
           color: #34d399;
         }
+
+        @media (max-width: 480px) {
+          .ml-auth-root {
+            padding: 24px 12px;
+            align-items: flex-start;
+          }
+          .ml-card {
+            padding: 24px 20px 24px;
+            border-radius: 22px;
+          }
+          .ml-logo {
+            margin-bottom: 20px;
+          }
+        }
       `}</style>
 
       <div className="ml-auth-root">
@@ -368,6 +400,12 @@ export default function LoginPage() {
         <div className="ml-glow-bottom" />
 
         <div className="ml-auth-inner">
+          {/* Back to landing */}
+          <Link href="/" className="ml-back">
+            <ArrowLeft size={14} />
+            Back to home
+          </Link>
+
           {/* Logo */}
           <div className="ml-logo">
             <div className="ml-logo-icon">M</div>
@@ -386,7 +424,6 @@ export default function LoginPage() {
             </p>
 
             <form onSubmit={handleSubmit} className="ml-form">
-              {/* Email */}
               <div className="ml-field-group">
                 <label>Email Address</label>
                 <div className="ml-field">
@@ -402,7 +439,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Password */}
               <div className="ml-field-group">
                 <label>Password</label>
                 <div className="ml-field">
@@ -415,39 +451,28 @@ export default function LoginPage() {
                     placeholder="••••••••"
                     required
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                 </div>
               </div>
 
-              {/* Forgot */}
-              <div className="ml-forgot">
+              {/* <div className="ml-forgot">
                 <button type="button">Forgot password?</button>
-              </div>
+              </div> */}
 
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="ml-btn-primary"
-              >
+              <button type="submit" disabled={isLoading} className="ml-btn-primary">
                 {isLoading ? "Logging in..." : "Login to MoneyLens"}
               </button>
             </form>
 
-            {/* Divider */}
-            <div className="ml-divider" style={{ marginTop: "20px" }}>
+            {/* <div className="ml-divider" style={{ marginTop: "20px" }}>
               <div className="ml-divider-line" />
               <span>OR</span>
               <div className="ml-divider-line" />
-            </div>
+            </div> */}
 
-            {/* Google */}
-            <button className="ml-btn-google">
+            {/* <button className="ml-btn-google">
               <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
                 <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="rgba(255,255,255,0.5)" />
                 <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="rgba(255,255,255,0.4)" />
@@ -455,9 +480,8 @@ export default function LoginPage() {
                 <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="rgba(255,255,255,0.45)" />
               </svg>
               Continue with Google
-            </button>
+            </button> */}
 
-            {/* Footer */}
             <p className="ml-footer">
               Don't have an account?
               <Link href="/signup">Create account</Link>

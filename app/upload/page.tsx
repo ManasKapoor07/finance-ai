@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Lock, ChevronDown,
 } from "lucide-react";
@@ -14,10 +14,22 @@ const ACCEPTED_EXTENSIONS = [".pdf", ".csv", ".xlsx"];
 const MAX_SIZE_MB = 10;
 
 const BANKS = ["HDFC", "ICICI", "AXIS", "SBI", "PNB", "OTHER"];
+const UPLOAD_MESSAGES = [
+  "Grab a chai ☕ — this takes a moment",
+  "Reading your transactions…",
+  "Categorising merchants…",
+  "Detecting spending patterns…",
+  "Mapping your money habits…",
+  "Running behavioral analysis…",
+  "Almost there — crunching the numbers…",
+  "Building your financial picture…",
+];
+
 
 export default function UploadPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const router   = useRouter();
+const [msgIndex, setMsgIndex] = useState(0);
 
   const [status,   setStatus]   = useState<FileStatus>("idle");
   const [file,     setFile]     = useState<File | null>(null);
@@ -47,6 +59,8 @@ export default function UploadPage() {
     setPassword("");
     setStatus("selected");
   };
+
+
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -108,6 +122,14 @@ export default function UploadPage() {
   const isDragging  = status === "dragging";
   const isUploading = status === "uploading";
   const isSuccess   = status === "success";
+
+    useEffect(() => {
+  if (!isUploading) { setMsgIndex(0); return; }
+  const interval = setInterval(() => {
+    setMsgIndex(i => (i + 1) % UPLOAD_MESSAGES.length);
+  }, 2800);
+  return () => clearInterval(interval);
+}, [isUploading]);
 
   return (
     <>
@@ -733,19 +755,38 @@ export default function UploadPage() {
             )}
 
             {/* Uploading */}
-            {isUploading && (
-              <>
-                <div className="ml-icon-box default">
-                  <Loader2 size={28} color="#6EE7B7" style={{ animation: "spin 1s linear infinite" }} />
-                </div>
-                <h3 className="ml-card-title">Uploading statement…</h3>
-                <div className="ml-progress-track">
-                  <div className="ml-progress-fill" style={{ width: `${progress}%` }} />
-                </div>
-                <p className="ml-progress-pct">{progress}%</p>
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-              </>
-            )}
+{isUploading && (
+  <>
+    <div className="ml-icon-box default">
+      <Loader2 size={28} color="#6EE7B7" style={{ animation: "spin 1s linear infinite" }} />
+    </div>
+
+    <h3 className="ml-card-title">Analysing your statement</h3>
+
+    {/* Rotating message */}
+    <p
+      key={msgIndex}
+      className="ml-card-sub"
+      style={{ animation: "ml-msg-fade 0.5s ease" }}
+    >
+      {UPLOAD_MESSAGES[msgIndex]}
+    </p>
+
+    <div className="ml-progress-track">
+      <div className="ml-progress-fill" style={{ width: `${progress}%` }} />
+    </div>
+
+    <p className="ml-progress-pct">{progress}%</p>
+
+    <style>{`
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes ml-msg-fade {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+    `}</style>
+  </>
+)}
 
             {/* Success */}
             {isSuccess && (
