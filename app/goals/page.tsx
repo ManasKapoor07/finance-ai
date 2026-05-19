@@ -546,7 +546,7 @@ function GoalCard({ goal, plans, onRefresh }: { goal: GoalDto; plans: GoalPlanDt
       {!displayPlan && goal.status === "ACTIVE" && (
         <div style={{ borderTop:"1px solid rgba(255,255,255,0.06)", padding:"13px 22px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <p style={{ margin:0, fontSize:13, fontWeight:500, color:"rgba(255,255,255,0.35)" }}>No savings plan yet</p>
-          <a href="/#chat" style={{ fontSize:13, fontWeight:700, color:"#6EE7B7", textDecoration:"none" }}>Ask AI to create one →</a>
+          {/* <a href="/#chat" style={{ fontSize:13, fontWeight:700, color:"#6EE7B7", textDecoration:"none" }}>Ask AI to create one →</a> */}
         </div>
       )}
     </div>
