@@ -63,8 +63,10 @@ function renderMarkdown(text: string) {
 const SUGGESTIONS = [
   "Where am I spending the most?",
   "Am I saving enough?",
-  "Show my subscription leaks",
-  "Can I afford a big purchase?",
+  "Can I buy an iPhone in 3 months as per my current spending?",
+  "What are some ways I can save more?",
+  "Help me set a savings goal for a vacation",
+
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
